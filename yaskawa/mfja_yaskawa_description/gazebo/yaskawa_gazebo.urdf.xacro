@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!--
+  Gazebo part of the description: gz_ros2_control/GazeboSimSystem and the plugin that
+  runs the controller_manager inside Gazebo. robot_namespace lets several arms share
+  one world; the controllers file uses /** keys for that reason.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="$(find mfja_yaskawa_description)/ros2_control/yaskawa_joints.xacro"/>
+
+  <xacro:macro name="yaskawa_gazebo"
+               params="name prefix initial_positions robot_namespace controller_params_file">
+    <ros2_control name="${name}" type="system">
+      <hardware>
+        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+      </hardware>
+      <xacro:yaskawa_position_joints prefix="${prefix}" initial_positions="${initial_positions}"/>
+    </ros2_control>
+
+    <gazebo>
+      <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+        <parameters>${controller_params_file}</parameters>
+        <xacro:if value="${robot_namespace != ''}">
+          <ros>
+            <namespace>${robot_namespace}</namespace>
+          </ros>
+        </xacro:if>
+      </plugin>
+    </gazebo>
+  </xacro:macro>
+</robot>

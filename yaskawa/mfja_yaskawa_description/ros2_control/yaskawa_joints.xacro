@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!-- ros2_control joint block shared by the Gazebo and mock systems: 6 joints, position commands. -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="yaskawa_position_joint" params="joint initial">
+    <joint name="${joint}">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">${initial}</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="yaskawa_position_joints" params="prefix initial_positions">
+    <xacro:yaskawa_position_joint joint="${prefix}joint_1_s" initial="${initial_positions['joint_1_s']}"/>
+    <xacro:yaskawa_position_joint joint="${prefix}joint_2_l" initial="${initial_positions['joint_2_l']}"/>
+    <xacro:yaskawa_position_joint joint="${prefix}joint_3_u" initial="${initial_positions['joint_3_u']}"/>
+    <xacro:yaskawa_position_joint joint="${prefix}joint_4_r" initial="${initial_positions['joint_4_r']}"/>
+    <xacro:yaskawa_position_joint joint="${prefix}joint_5_b" initial="${initial_positions['joint_5_b']}"/>
+    <xacro:yaskawa_position_joint joint="${prefix}joint_6_t" initial="${initial_positions['joint_6_t']}"/>
+  </xacro:macro>
+</robot>

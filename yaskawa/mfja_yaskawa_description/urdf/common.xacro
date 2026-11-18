@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!-- Helpers shared by the HC10 and HC10DT macros. Defines macros only. -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Cover colours of the real MFJA robots: HC10 (right) blue, HC10DT (left) white. -->
+  <xacro:macro name="yaskawa_material" params="color">
+    <xacro:if value="${color == 'white'}">
+      <material name="yaskawa_white">
+        <color rgba="0.99 0.99 0.99 1.0"/>
+      </material>
+    </xacro:if>
+    <xacro:unless value="${color == 'white'}">
+      <material name="yaskawa_blue">
+        <color rgba="${33/255} ${38/255} ${191/255} 1.0"/>
+      </material>
+    </xacro:unless>
+  </xacro:macro>
+
+  <!--
+    Placeholder inertia at the link origin. Gazebo needs one on every moving link;
+    the values are the ones used by the mfja twin, not manufacturer data.
+    The arms are position-controlled, so these values only affect how hard the
+    simulated joints must push against gravity.
+  -->
+  <xacro:macro name="placeholder_inertial" params="mass ixx iyy izz">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${mass}"/>
+      <inertia ixx="${ixx}" ixy="0.0" ixz="0.0" iyy="${iyy}" iyz="0.0" izz="${izz}"/>
+    </inertial>
+  </xacro:macro>
+
+</robot>

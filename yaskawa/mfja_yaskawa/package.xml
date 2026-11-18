@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>mfja_yaskawa</name>
+  <version>0.2.0</version>
+  <description>
+    Metapackage of the MFJA Room 315 Yaskawa arms (HC10, HC10DT): description,
+    bringup and Gazebo simulation. Entry point of the documentation (README.md).
+  </description>
+  <maintainer email="tayorayano@gmail.com">Niel MBEDE</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>mfja_yaskawa_bringup</exec_depend>
+  <exec_depend>mfja_yaskawa_description</exec_depend>
+  <exec_depend>mfja_yaskawa_gazebo</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

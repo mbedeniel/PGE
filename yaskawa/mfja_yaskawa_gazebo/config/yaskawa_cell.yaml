@@ -1,0 +1,20 @@
+# The two Yaskawa arms of Room 315.
+#
+# Real cell (ros_yaskawa_hc10 README): left = HC10DT (white covers),
+# right = HC10 (blue covers). The namespaces are those of the real robots
+# under ROS 1; update them if the ROS 2 setup on the real robots uses others.
+#
+# room_315_pose: base pose in the mfja worlds (room_315_only and mfja_3rd_floor),
+#   copied from mfja_robot_control_config/config/robots*.yaml (yaskawa_hc10dt_1, yaskawa_hc10_1).
+# standalone_pose: base pose in the empty test world.
+robots:
+  left:
+    namespace: yaskawa_LEFT
+    model: hc10dt
+    room_315_pose: {x: -10.4366, y: -3.0, z: 0.62, yaw: 1.57}
+    standalone_pose: {x: 0.0, y: 1.0, z: 0.0, yaw: 0.0}
+  right:
+    namespace: yaskawa_RIGHT
+    model: hc10
+    room_315_pose: {x: -15.1622, y: -3.0, z: 0.62, yaw: 1.57}
+    standalone_pose: {x: 0.0, y: -1.0, z: 0.0, yaw: 0.0}

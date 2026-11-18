@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<!--
+  Root file of the Room 315 right Yaskawa: HC10, blue covers.
+
+  Arguments
+    robot_namespace         ROS namespace given to the Gazebo plugin (several arms in one world)
+    gz_sim                  true: Gazebo (gz_ros2_control)
+    use_mock_hardware       true: mock_components/GenericSystem (when gz_sim is false)
+    controller_params_file  controller_manager parameters loaded by the Gazebo plugin
+    initial_positions_file  initial joint positions (rad)
+    prefix                  prefix of link and joint names (none on the real robots)
+-->
+<robot name="yaskawa_hc10" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="robot_namespace" default=""/>
+  <xacro:arg name="gz_sim" default="false"/>
+  <xacro:arg name="use_mock_hardware" default="false"/>
+  <xacro:arg name="controller_params_file" default=""/>
+  <xacro:arg name="initial_positions_file"
+             default="$(find mfja_yaskawa_description)/config/initial_positions.yaml"/>
+  <xacro:arg name="prefix" default=""/>
+
+  <xacro:include filename="$(find mfja_yaskawa_description)/urdf/hc10_macro.xacro"/>
+  <xacro:include filename="$(find mfja_yaskawa_description)/urdf/yaskawa_control.xacro"/>
+
+  <!-- A root link named "world" makes Gazebo fix the base to the world. -->
+  <link name="world"/>
+  <joint name="$(arg prefix)base_link_in_world" type="fixed">
+    <parent link="world"/>
+    <child link="$(arg prefix)base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <xacro:motoman_hc10 prefix="$(arg prefix)" color="blue"/>
+
+  <xacro:yaskawa_control name="yaskawa_hc10" prefix="$(arg prefix)"
+                         gz_sim="$(arg gz_sim)"
+                         use_mock_hardware="$(arg use_mock_hardware)"
+                         robot_namespace="$(arg robot_namespace)"
+                         controller_params_file="$(arg controller_params_file)"
+                         initial_positions_file="$(arg initial_positions_file)"/>
+</robot>
