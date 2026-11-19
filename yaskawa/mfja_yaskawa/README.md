@@ -80,7 +80,9 @@ Sourcing the workspace adds the description to `GZ_SIM_RESOURCE_PATH` so that Ga
    ros2 launch mfja_3rd_floor_bringup room_315_only.launch.py robots:=none gz_partition:=pge
    ros2 launch mfja_yaskawa_gazebo yaskawa_gazebo.launch.py start_gazebo:=false gz_partition:=pge
    ```
-   Start the simulation (play button) if Gazebo opens paused. Full floor: add `world_name:=mfja_3rd_floor`.
+   Run the second command once the Gazebo window shows the room: a model spawned while the GUI is
+   still starting is not drawn. Start the simulation (play button) if Gazebo opens paused. Full floor:
+   add `world_name:=mfja_3rd_floor`.
 
 Same commands as on the real robots (replace `yaskawa_RIGHT` by `yaskawa_LEFT` for the other arm):
 

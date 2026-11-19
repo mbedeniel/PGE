@@ -35,13 +35,16 @@ source install/setup.bash
 `mfja_motoman_hc10` is built without `--symlink-install`: its scripts are not marked executable in
 its repository, so only a copy made at install time can be run with `ros2 run`.
 
-The digital twin has its own build and launch instructions in its README.
+The digital twin has its own build and launch instructions in its README. On our machines it runs
+with the local patches of [`patches/mfja_3rd_floor_gz`](patches/mfja_3rd_floor_gz/README.md),
+applied on a local branch that is never pushed.
 
 ## Contents
 
 | Path | Content |
 |---|---|
 | [`yaskawa/`](yaskawa/mfja_yaskawa/README.md) | Yaskawa HC10 / HC10DT: description, controllers, Gazebo simulation with the same ROS 2 interface as the real robots (MotoROS2) |
+| [`patches/mfja_3rd_floor_gz/`](patches/mfja_3rd_floor_gz/README.md) | Local fixes for the twin, kept as patches (Gazebo GUI started after the robots are spawned) |
 | [`docs/montrac/questions_D_Bury.md`](docs/montrac/questions_D_Bury.md) | Questions on the real Montrac (controller, link, devices, safety) and leads collected so far |
 | [`docs/yaskawa/verifications_yaskawa_reel.md`](docs/yaskawa/verifications_yaskawa_reel.md) | Checks to run on the real Yaskawa arms |
 

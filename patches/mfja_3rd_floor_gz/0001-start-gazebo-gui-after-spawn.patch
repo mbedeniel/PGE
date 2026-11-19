@@ -1,0 +1,317 @@
+diff --git a/mfja_robot_control_config/launch/isolated_industrial_robot.launch.py b/mfja_robot_control_config/launch/isolated_industrial_robot.launch.py
+index c288b07..e178ddd 100644
+--- a/mfja_robot_control_config/launch/isolated_industrial_robot.launch.py
++++ b/mfja_robot_control_config/launch/isolated_industrial_robot.launch.py
+@@ -10,9 +10,11 @@ from launch.actions import (
+     DeclareLaunchArgument,
+     IncludeLaunchDescription,
+     OpaqueFunction,
++    RegisterEventHandler,
+     SetEnvironmentVariable,
+     TimerAction,
+ )
++from launch.event_handlers import OnProcessExit
+ from launch.launch_description_sources import PythonLaunchDescriptionSource
+ from launch.substitutions import LaunchConfiguration
+ from launch_ros.actions import Node
+@@ -30,6 +32,9 @@ _materialize_gripper_assets = _GRIPPER_RANGE_UTILS['materialize_gripper_assets']
+ 
+ DESCRIPTION_PACKAGE = 'mfja_3rd_floor_description'
+ CONTROL_CONFIG_PACKAGE = 'mfja_robot_control_config'
++# If a spawn process never exits (for example Gazebo cannot be reached), open
++# the GUI anyway after this many seconds so the problem stays visible.
++GUI_FALLBACK_START_S = 60.0
+ INDUSTRIAL_MODELS = {
+     'kuka_kr6r900sixx',
+     'staubli_tx2_60l',
+@@ -180,6 +185,43 @@ def _make_bridge_yaml(robot_name, world_name):
+     return output_path
+ 
+ 
++def _start_after_processes_exit(processes, actions, fallback_s=GUI_FALLBACK_START_S):
++    """Return entities that start `actions` once every process in `processes` exits.
++
++    The Gazebo GUI ignores world updates until it has processed its first
++    snapshot of the world. A model spawned while the GUI is still starting up
++    is therefore never shown, even though it exists in the simulation.
++    Starting the GUI only after the spawn processes have finished puts every
++    spawned model in that first snapshot, whatever the machine's speed.
++    """
++    if not processes:
++        return list(actions)
++
++    pending = {id(process) for process in processes}
++    state = {'started': False}
++
++    def start(_context=None):
++        if state['started']:
++            return None
++        state['started'] = True
++        return list(actions)
++
++    def on_exit(event, _context):
++        pending.discard(id(event.action))
++        if pending:
++            return None
++        return start()
++
++    entities = [
++        RegisterEventHandler(OnProcessExit(target_action=process, on_exit=on_exit))
++        for process in processes
++    ]
++    entities.append(
++        TimerAction(period=fallback_s, actions=[OpaqueFunction(function=start)])
++    )
++    return entities
++
++
+ def _create_entity_node(entity_name, sdf_path, pose, world_name):
+     x, y, z, roll, pitch, yaw = pose
+     return Node(
+@@ -277,22 +319,35 @@ def _launch_setup(context, *args, **kwargs):
+         ),
+     ]
+ 
++    table_spawn = _create_entity_node(
++        entity_name=f'{robot_name}_table',
++        sdf_path=table_sdf,
++        pose=layout['table_pose'],
++        world_name=world_entity_name,
++    )
++    robot_spawn = _create_entity_node(
++        entity_name=robot_name,
++        sdf_path=robot_sdf,
++        pose=layout['robot_pose'],
++        world_name=world_entity_name,
++    )
++
+     if enable_gui:
+-        actions.append(
+-            IncludeLaunchDescription(
+-                PythonLaunchDescriptionSource(
+-                    os.path.join(
+-                        get_package_share_directory('ros_gz_sim'),
+-                        'launch',
+-                        'gz_sim.launch.py',
+-                    )
+-                ),
+-                launch_arguments={
+-                    'gz_args': f'-g --gui-config {gui_config_file}',
+-                    'on_exit_shutdown': 'true',
+-                }.items(),
+-            )
++        gui_action = IncludeLaunchDescription(
++            PythonLaunchDescriptionSource(
++                os.path.join(
++                    get_package_share_directory('ros_gz_sim'),
++                    'launch',
++                    'gz_sim.launch.py',
++                )
++            ),
++            launch_arguments={
++                'gz_args': f'-g --gui-config {gui_config_file}',
++                'on_exit_shutdown': 'true',
++            }.items(),
+         )
++        # Open the GUI only once the table and robot exist in the world.
++        actions.extend(_start_after_processes_exit([table_spawn, robot_spawn], [gui_action]))
+ 
+     spawn_actions = [
+         Node(
+@@ -309,18 +364,8 @@ def _launch_setup(context, *args, **kwargs):
+             output='screen',
+             arguments=['--ros-args', '-p', f'config_file:={bridge_file}'],
+         ),
+-        _create_entity_node(
+-            entity_name=f'{robot_name}_table',
+-            sdf_path=table_sdf,
+-            pose=layout['table_pose'],
+-            world_name=world_entity_name,
+-        ),
+-        _create_entity_node(
+-            entity_name=robot_name,
+-            sdf_path=robot_sdf,
+-            pose=layout['robot_pose'],
+-            world_name=world_entity_name,
+-        ),
++        table_spawn,
++        robot_spawn,
+         Node(
+             package='robot_state_publisher',
+             executable='robot_state_publisher',
+diff --git a/mfja_robot_control_config/launch/multi_robot_sim.launch.py b/mfja_robot_control_config/launch/multi_robot_sim.launch.py
+index 39103ba..f27cc68 100644
+--- a/mfja_robot_control_config/launch/multi_robot_sim.launch.py
++++ b/mfja_robot_control_config/launch/multi_robot_sim.launch.py
+@@ -12,9 +12,11 @@ from launch.actions import (
+     IncludeLaunchDescription,
+     LogInfo,
+     OpaqueFunction,
++    RegisterEventHandler,
+     SetEnvironmentVariable,
+     TimerAction,
+ )
++from launch.event_handlers import OnProcessExit
+ from launch.launch_description_sources import PythonLaunchDescriptionSource
+ from launch.substitutions import LaunchConfiguration
+ from launch_ros.actions import Node
+@@ -44,6 +46,13 @@ INDUSTRIAL_MODELS = {
+ }
+ DESCRIPTION_PACKAGE = 'mfja_3rd_floor_description'
+ CONTROL_CONFIG_PACKAGE = 'mfja_robot_control_config'
++# Extra wait between the last robot spawn and the GUI start, so the Room 315
++# rail nodes (started 4 s after launch by full_floor / room_315_only) can finish
++# spawning their device markers before the GUI takes its first world snapshot.
++GUI_START_DELAY_AFTER_SPAWN_S = 3.0
++# If a spawn process never exits (for example Gazebo cannot be reached), open
++# the GUI anyway after this many seconds so the problem stays visible.
++GUI_FALLBACK_START_S = 90.0
+ ROOM315_VISUAL_OBSTACLE_MODEL_URI = 'model://room315_visual_obstacle_marker'
+ ROOM315_VISUAL_OBSTACLE_ENTITY_NAMES = {
+     'room315_visual_right_obstacle_marker',
+@@ -326,6 +335,50 @@ def _make_bridge_yaml(robot_name, world_name, model_name):
+     return output_path
+ 
+ 
++def _start_after_processes_exit(
++    processes,
++    actions,
++    delay_s=0.0,
++    fallback_s=GUI_FALLBACK_START_S,
++):
++    """Return entities that start `actions` once every process in `processes` exits.
++
++    The Gazebo GUI ignores world updates until it has processed its first
++    snapshot of the world. A model spawned while the GUI is still starting up
++    is therefore never shown, even though it exists in the simulation.
++    Starting the GUI only after the spawn processes have finished puts every
++    spawned model in that first snapshot, whatever the machine's speed.
++    """
++    if not processes:
++        return list(actions)
++
++    pending = {id(process) for process in processes}
++    state = {'started': False}
++
++    def start(_context=None, wait_s=0.0):
++        if state['started']:
++            return None
++        state['started'] = True
++        if wait_s > 0.0:
++            return [TimerAction(period=wait_s, actions=list(actions))]
++        return list(actions)
++
++    def on_exit(event, _context):
++        pending.discard(id(event.action))
++        if pending:
++            return None
++        return start(wait_s=delay_s)
++
++    entities = [
++        RegisterEventHandler(OnProcessExit(target_action=process, on_exit=on_exit))
++        for process in processes
++    ]
++    entities.append(
++        TimerAction(period=fallback_s, actions=[OpaqueFunction(function=start)])
++    )
++    return entities
++
++
+ def _materialize_mobile_model_sdf(model_sdf_path, robot_name):
+     with open(model_sdf_path, 'r', encoding='utf-8') as infp:
+         sdf_text = infp.read()
+@@ -512,22 +565,20 @@ def _launch_setup(context, *args, **kwargs):
+         ),
+     ]
+ 
+-    if enable_gui:
+-        actions.append(
+-            IncludeLaunchDescription(
+-                PythonLaunchDescriptionSource(
+-                    os.path.join(
+-                        get_package_share_directory('ros_gz_sim'),
+-                        'launch',
+-                        'gz_sim.launch.py',
+-                    )
+-                ),
+-                launch_arguments={
+-                    'gz_args': f'-g --gui-config {gui_config_file}',
+-                    'on_exit_shutdown': 'true',
+-                }.items(),
++    gui_action = IncludeLaunchDescription(
++        PythonLaunchDescriptionSource(
++            os.path.join(
++                get_package_share_directory('ros_gz_sim'),
++                'launch',
++                'gz_sim.launch.py',
+             )
+-        )
++        ),
++        launch_arguments={
++            'gz_args': f'-g --gui-config {gui_config_file}',
++            'on_exit_shutdown': 'true',
++        }.items(),
++    )
++    robot_spawns = []
+ 
+     spawn_actions = [
+         Node(
+@@ -580,23 +631,26 @@ def _launch_setup(context, *args, **kwargs):
+ 
+         bridge_file = _make_bridge_yaml(robot_name, world_entity_name, model_name)
+ 
++        robot_spawn = Node(
++            package='ros_gz_sim',
++            executable='create',
++            name=f'spawn_{robot_name}',
++            output='screen',
++            parameters=[{
++                'world': world_entity_name,
++                'file': spawn_sdf,
++                'name': robot_name,
++                'allow_renaming': False,
++                'x': x_pose,
++                'y': y_pose,
++                'z': z_pose,
++                'Y': yaw,
++            }],
++        )
++        robot_spawns.append(robot_spawn)
++
+         spawn_actions.extend([
+-            Node(
+-                package='ros_gz_sim',
+-                executable='create',
+-                name=f'spawn_{robot_name}',
+-                output='screen',
+-                parameters=[{
+-                    'world': world_entity_name,
+-                    'file': spawn_sdf,
+-                    'name': robot_name,
+-                    'allow_renaming': False,
+-                    'x': x_pose,
+-                    'y': y_pose,
+-                    'z': z_pose,
+-                    'Y': yaw,
+-                }],
+-            ),
++            robot_spawn,
+             Node(
+                 package='robot_state_publisher',
+                 executable='robot_state_publisher',
+@@ -618,6 +672,15 @@ def _launch_setup(context, *args, **kwargs):
+             ),
+         ])
+ 
++    if enable_gui:
++        # Open the GUI only once every robot exists in the world. With
++        # robots:=none there is nothing to wait for and it opens immediately.
++        actions.extend(_start_after_processes_exit(
++            robot_spawns,
++            [gui_action],
++            delay_s=GUI_START_DELAY_AFTER_SPAWN_S,
++        ))
++
+     actions.append(TimerAction(period=3.0, actions=spawn_actions))
+     return actions
+ 
