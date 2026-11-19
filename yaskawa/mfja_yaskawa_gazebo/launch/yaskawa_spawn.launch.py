@@ -6,6 +6,8 @@ Can be included several times with different namespaces (several arms in one wor
     2. robot_state_publisher (TF on <robot_namespace>/tf)
     3. ros_gz_sim create, with the description passed as a string
     4. joint_state_broadcaster and arm_controller, once the arm is in the world
+    5. motoros2_sim: the MotoROS2 interface of the real robot (follow_joint_trajectory,
+       robot_status, start_traj_mode, ...), relayed to arm_controller
 """
 
 import os
@@ -19,6 +21,10 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 MODELS = ('hc10', 'hc10dt')
+
+
+def _as_bool(value):
+    return str(value).strip().lower() in ('1', 'true', 'yes', 'on')
 
 
 def _launch_setup(context):
@@ -50,7 +56,9 @@ def _launch_setup(context):
         namespace=namespace,
         output='screen',
         parameters=[{'robot_description': robot_description, 'use_sim_time': True}],
-        remappings=[('/tf', 'tf'), ('/tf_static', 'tf_static')],
+        # publish_robot_tf:=false leaves <ns>/tf to another publisher (e.g. a MoveIt launch).
+        remappings=[('/tf', 'tf'), ('/tf_static', 'tf_static')] if _as_bool(arg('publish_robot_tf'))
+        else [('/tf', 'sim_tf'), ('/tf_static', 'sim_tf_static')],
     )
     spawn = Node(
         package='ros_gz_sim',
@@ -76,11 +84,24 @@ def _launch_setup(context):
             '--controller-manager-timeout', '120',
         ],
     )
-    return [
+    actions = [
         robot_state_publisher,
         spawn,
         RegisterEventHandler(OnProcessExit(target_action=spawn, on_exit=[spawner])),
     ]
+    if _as_bool(arg('motoros2_sim')):
+        actions.append(Node(
+            package='mfja_yaskawa_motoros2_sim',
+            executable='motoros2_sim',
+            namespace=namespace,
+            output='screen',
+            parameters=[
+                os.path.join(get_package_share_directory('mfja_yaskawa_motoros2_sim'),
+                             'config', 'motoros2_sim.yaml'),
+                {'use_sim_time': True},
+            ],
+        ))
+    return actions
 
 
 def generate_launch_description():
@@ -92,6 +113,10 @@ def generate_launch_description():
         DeclareLaunchArgument('y', default_value='0.0'),
         DeclareLaunchArgument('z', default_value='0.0'),
         DeclareLaunchArgument('yaw', default_value='0.0'),
+        DeclareLaunchArgument('motoros2_sim', default_value='true',
+                              description='Start the MotoROS2 interface imitation.'),
+        DeclareLaunchArgument('publish_robot_tf', default_value='true',
+                              description='false: publish the simulated TF on <ns>/sim_tf instead of <ns>/tf.'),
         DeclareLaunchArgument('controller_params_file', default_value='',
                               description='Default: mfja_yaskawa_bringup/config/yaskawa_controllers.yaml'),
         OpaqueFunction(function=_launch_setup),

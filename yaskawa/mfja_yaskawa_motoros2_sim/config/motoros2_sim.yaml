@@ -1,0 +1,17 @@
+# Parameters of the MotoROS2 imitation (one node per robot namespace).
+/**/motoros2_sim:
+  ros__parameters:
+    joint_names: [joint_1, joint_2, joint_3, joint_4, joint_5, joint_6]
+    controller_action: arm_controller/follow_joint_trajectory
+    # Limit observed on the MFJA setup (mfja_ros2_yaskawa README).
+    max_points: 200
+    # Maximum difference (rad) between the first trajectory point and the current position.
+    start_tolerance: 0.01
+    check_goals: true
+    status_rate: 10.0
+    # Gripper requests watched by the background job of each controller:
+    # OT#100 init, OT#101 open, OT#102 close. Addresses computed with the
+    # Yaskawa numbering (OT#n -> 10000 + 10*((n-1)//8 + 1) + (n-1)%8); confirm on the pendant.
+    gripper_init_address: 10133
+    gripper_open_address: 10134
+    gripper_close_address: 10135

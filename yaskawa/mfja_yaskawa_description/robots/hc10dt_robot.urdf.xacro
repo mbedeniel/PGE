@@ -30,11 +30,6 @@
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <!--
-    joint_1_yaw_offset (default +90 deg, in hc10dt_b10_macro.xacro) reproduces the description
-    used on the real left robot (ros_yaskawa_hc10). Upstream ROS-Industrial has 0 here.
-    Not verified on the real robot yet: see docs/yaskawa/verifications_yaskawa_reel.md.
-  -->
   <xacro:motoman_hc10dt_b10 prefix="$(arg prefix)" color="white"/>
 
   <xacro:yaskawa_control name="yaskawa_hc10dt" prefix="$(arg prefix)"

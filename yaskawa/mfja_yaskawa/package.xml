@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>mfja_yaskawa</name>
-  <version>0.2.0</version>
+  <version>0.3.0</version>
   <description>
     Metapackage of the MFJA Room 315 Yaskawa arms (HC10, HC10DT): description,
     bringup and Gazebo simulation. Entry point of the documentation (README.md).
@@ -14,6 +14,7 @@
 
   <exec_depend>mfja_yaskawa_bringup</exec_depend>
   <exec_depend>mfja_yaskawa_description</exec_depend>
+  <exec_depend>mfja_yaskawa_motoros2_sim</exec_depend>
   <exec_depend>mfja_yaskawa_gazebo</exec_depend>
 
   <export>

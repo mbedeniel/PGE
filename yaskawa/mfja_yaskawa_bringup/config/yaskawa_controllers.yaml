@@ -15,12 +15,12 @@
 /**/arm_controller:
   ros__parameters:
     joints:
-      - joint_1_s
-      - joint_2_l
-      - joint_3_u
-      - joint_4_r
-      - joint_5_b
-      - joint_6_t
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+      - joint_5
+      - joint_6
     command_interfaces:
       - position
     state_interfaces:

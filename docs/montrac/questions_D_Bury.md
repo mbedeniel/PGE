@@ -3,7 +3,8 @@
 - **Objet :** réunir les informations nécessaires pour piloter le Montrac réel depuis ROS 2 et pour en faire une simulation fidèle.
 - **Lot :** L4 Intralogistique (Montrac), responsable Niel MBEDE
 - **Interlocutrice :** Diane BURY, MFJA
-- **Version :** 18/11/2026
+- **Version :** 19/11/2026 (pistes ajoutées après la réponse de Mme Bury du 19/11)
+- **Entretien prévu :** lundi 23/11/2026, 14 h
 
 ## Contexte
 
@@ -17,14 +18,25 @@ La simulation devra donc offrir exactement les commandes et les retours d'état 
 
 **Utilisation :** si le temps est court, commencer par la section 1. Les réponses sont notées dans la colonne « Réponse », puis la fiche complétée est versionnée.
 
+## Pistes au 19/11/2026 (à confirmer le 23/11)
+
+Mme Bury n'a pas encore répondu sur le Montrac ; elle propose d'en parler le 23/11. Les pistes ci-dessous viennent du dépôt [mfja_ros2_yaskawa](https://github.com/aip-primeca-occitanie/mfja_ros2_yaskawa) (script `supervision_IHM.py`, interface d'étudiants GEII marquée « non testée ») et de son message. Elle rappelle que les informations, même officielles, peuvent être incomplètes.
+
+| Piste | Source | Lien avec les questions |
+|---|---|---|
+| Un « automate maître » répond en **Modbus TCP** à l'adresse `10.100.12.121`, port 502 ; le script lit une bobine (coil 0) comme ordre de départ et écrit une bobine (coil 1) pour signaler la fin de cycle. Est-ce l'automate qui pilote le Montrac ? | `supervision_IHM.py` | 1.1, 1.2, 3.1, 3.3, 3.4 |
+| Une **passerelle IO-Link Turck** répond en Modbus TCP à `10.100.12.115` (registres 2049 en écriture, 1 en lecture) ; elle pilote une pince Zimmer. Sert-elle aussi au Montrac (modules IO-Link) ? | `supervision_IHM.py` | 1.2, 8.2 |
+| Le réseau des équipements de la salle 315 semble être `10.100.12.x` (Yaskawa `.133` et `.134`, passerelle `.115`, automate `.121`). Masque et plan d'adressage à confirmer. | Dépôts `ros_yaskawa_hc10` et `mfja_ros2_yaskawa` | 3.5 |
+| La configuration réseau locale est décrite sur le Moodle de la plateforme (wiki salle 315). Accès accordé par Mme Bury après une première connexion de chaque étudiant. | Message du 19/11, README de `mfja_ros2_yaskawa` | Section 2 |
+
 ## 1. Questions prioritaires
 
 Les réponses à 1.3 et 1.4 décident de l'interface ros2_control. Le jumeau actuel commande chaque navette individuellement et ses capteurs indiquent quelle navette passe. Si le système réel ne le permet pas, la simulation devra être modifiée en conséquence.
 
 | N° | Question | Réponse |
 |---|---|---|
-| 1.1 | Qu'est-ce qui pilote le Montrac aujourd'hui : un automate (marque, modèle, CPU) ? Un automate par cellule ou un seul pour les deux ? Y a-t-il un pupitre ou une IHM ? | |
-| 1.2 | Par quel moyen un PC peut-il lire les capteurs et commander les actionneurs : Ethernet (Modbus TCP, OPC UA, S7, Profinet), maître IO-Link, entrées/sorties TOR libres, autre ? Lequel est autorisé à la MFJA ? | |
+| 1.1 | Qu'est-ce qui pilote le Montrac aujourd'hui : un automate (marque, modèle, CPU) ? Un automate par cellule ou un seul pour les deux ? Y a-t-il un pupitre ou une IHM ? | Piste : « automate maître » en `10.100.12.121` (voir pistes) |
+| 1.2 | Par quel moyen un PC peut-il lire les capteurs et commander les actionneurs : Ethernet (Modbus TCP, OPC UA, S7, Profinet), maître IO-Link, entrées/sorties TOR libres, autre ? Lequel est autorisé à la MFJA ? | Piste : Modbus TCP, déjà utilisé par un script d'étudiants vers l'automate maître |
 | 1.3 | Peut-on arrêter ou redémarrer une navette individuellement (commande embarquée, module infrarouge, alimentation par tronçon) ? Ou seulement avec les stoppeurs, à des points fixes ? | |
 | 1.4 | Les capteurs identifient-ils la navette (RFID, code, couleur) ou détectent-ils seulement une présence ? | |
 | 1.5 | Un programme automate est-il en service ? Peut-on lire et écrire ses variables sans le modifier, ou faut-il lui ajouter un bloc d'échange ? Qui a le droit de le modifier, et avec quel logiciel ? | |
@@ -41,6 +53,8 @@ Les réponses à 1.3 et 1.4 décident de l'interface ros2_control. Le jumeau act
 - [ ] Sujets et corrigés des TP qui utilisent le Montrac
 - [ ] Analyse de risques, consignes de sécurité et notice de mise en route de la cellule
 - [ ] Traces de tout essai antérieur de connexion d'un PC (serveur OPC UA, Node-RED, script, supervision)
+- [ ] Table des adresses Modbus de l'automate maître (`10.100.12.121`) et rôle de ses bobines et registres
+- [ ] Accès au Moodle de la plateforme (wiki salle 315) pour toute l'équipe
 
 ## 3. Automate et communication
 
@@ -50,7 +64,7 @@ Les réponses à 1.3 et 1.4 décident de l'interface ros2_control. Le jumeau act
 | 3.2 | Logiciel et version nécessaires pour ouvrir le programme (TIA Portal, EcoStruxure, Codesys…). Une licence est-elle disponible pour l'équipe ? | |
 | 3.3 | Un serveur OPC UA ou Modbus TCP est-il déjà actif sur l'automate ? Sinon, peut-on l'activer ? | |
 | 3.4 | Quelles variables contiennent l'état des capteurs, des aiguillages et des stoppeurs ? Lesquelles peut-on écrire pour commander ? | |
-| 3.5 | Le réseau de la cellule est-il isolé de celui de l'université ? Peut-on y brancher un PC portable, et sur quel port ? | |
+| 3.5 | Le réseau de la cellule est-il isolé de celui de l'université ? Peut-on y brancher un PC portable, et sur quel port ? | Piste : réseau `10.100.12.x` ; configuration sur le Moodle (wiki salle 315) |
 | 3.6 | Temps de cycle de l'automate, et fréquence d'échange raisonnable avec un PC (10, 50 ou 100 Hz ?). | |
 | 3.7 | Si l'IHM locale et le PC donnent des ordres contradictoires, lequel a priorité ? Existe-t-il un mode « commande externe » ? | |
 | 3.8 | Existe-t-il un automate de rechange, un simulateur (type PLCSIM) ou un banc d'E/S pour développer sans immobiliser la cellule ? | |

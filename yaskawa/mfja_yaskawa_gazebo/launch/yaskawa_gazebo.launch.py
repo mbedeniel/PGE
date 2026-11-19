@@ -5,7 +5,7 @@
   twin started with robots:=none. Both launches must use the same gz_partition.
 
 Each arm is spawned by yaskawa_spawn.launch.py in its own namespace
-(cell file: config/yaskawa_cell.yaml).
+(cell file: config/yaskawa_cell.yaml), with the MotoROS2 interface of the real robot.
 """
 
 import os
@@ -84,6 +84,8 @@ def _launch_setup(context):
                 'y': str(pose['y']),
                 'z': str(pose['z']),
                 'yaw': str(pose['yaw']),
+                'motoros2_sim': arg('motoros2_sim'),
+                'publish_robot_tf': arg('publish_robot_tf'),
             }.items(),
         ))
     return actions
@@ -106,6 +108,10 @@ def generate_launch_description():
                               description='Gazebo partition; must match the running world.'),
         DeclareLaunchArgument('poses', default_value='',
                               description='standalone or room_315 (default depends on start_gazebo).'),
+        DeclareLaunchArgument('motoros2_sim', default_value='true',
+                              description='Start the MotoROS2 interface imitation for each arm.'),
+        DeclareLaunchArgument('publish_robot_tf', default_value='true',
+                              description='false: simulated TF on <ns>/sim_tf (leave <ns>/tf to MoveIt).'),
         DeclareLaunchArgument('cell_file', default_value=default_cell_file,
                               description='Arms to spawn: namespace, model, poses.'),
         OpaqueFunction(function=_launch_setup),

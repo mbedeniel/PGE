@@ -12,11 +12,11 @@
   </xacro:macro>
 
   <xacro:macro name="yaskawa_position_joints" params="prefix initial_positions">
-    <xacro:yaskawa_position_joint joint="${prefix}joint_1_s" initial="${initial_positions['joint_1_s']}"/>
-    <xacro:yaskawa_position_joint joint="${prefix}joint_2_l" initial="${initial_positions['joint_2_l']}"/>
-    <xacro:yaskawa_position_joint joint="${prefix}joint_3_u" initial="${initial_positions['joint_3_u']}"/>
-    <xacro:yaskawa_position_joint joint="${prefix}joint_4_r" initial="${initial_positions['joint_4_r']}"/>
-    <xacro:yaskawa_position_joint joint="${prefix}joint_5_b" initial="${initial_positions['joint_5_b']}"/>
-    <xacro:yaskawa_position_joint joint="${prefix}joint_6_t" initial="${initial_positions['joint_6_t']}"/>
+    <xacro:yaskawa_position_joint joint="${prefix}joint_1" initial="${initial_positions['joint_1']}"/>
+    <xacro:yaskawa_position_joint joint="${prefix}joint_2" initial="${initial_positions['joint_2']}"/>
+    <xacro:yaskawa_position_joint joint="${prefix}joint_3" initial="${initial_positions['joint_3']}"/>
+    <xacro:yaskawa_position_joint joint="${prefix}joint_4" initial="${initial_positions['joint_4']}"/>
+    <xacro:yaskawa_position_joint joint="${prefix}joint_5" initial="${initial_positions['joint_5']}"/>
+    <xacro:yaskawa_position_joint joint="${prefix}joint_6" initial="${initial_positions['joint_6']}"/>
   </xacro:macro>
 </robot>
