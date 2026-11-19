@@ -14,7 +14,7 @@ real robots, so that client code (scripts, MoveIt) works unchanged in simulation
 joint_states is published by the joint_state_broadcaster of the simulation.
 Goals are checked like MotoROS2 does (trajectory mode, 2 to max_points points, all joints,
 velocities, increasing times, zero final velocity, start at the current position), then
-forwarded to the joint_trajectory_controller of the simulation.
+forwarded to the joint_trajectory_controller of the simulation, to start at once as MotoROS2 does.
 """
 
 import threading
@@ -234,11 +234,19 @@ class MotoROS2Sim(Node):
                 MotionReadyEnum.NOT_READY_UNSPECIFIED),
                 'The simulated trajectory controller is not available.')
 
+        # MotoROS2 starts a trajectory as soon as it is received: of the goal fields, only
+        # goal_tolerance and goal_time_tolerance are used, header.stamp is ignored. The
+        # joint_trajectory_controller would instead wait until header.stamp, which clients
+        # written for the real robot fill with wall-clock time, far ahead of simulated time.
+        request = goal_handle.request
+        request.trajectory.header.stamp.sec = 0
+        request.trajectory.header.stamp.nanosec = 0
+
         with self._lock:
             self._in_motion = True
         try:
             client_goal = await self._client.send_goal_async(
-                goal_handle.request,
+                request,
                 feedback_callback=lambda fb: goal_handle.publish_feedback(fb.feedback))
             if not client_goal.accepted:
                 return self._abort(goal_handle, checks.motoros2_error_code(

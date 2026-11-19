@@ -37,7 +37,8 @@ In the namespace of each robot (`/yaskawa_LEFT/...`, `/yaskawa_RIGHT/...`):
 
 Rules applied in simulation as MotoROS2 does: `start_traj_mode` first; 2 to 200 points;
 all six joints; positions and velocities in every point; strictly increasing times; zero final
-velocity; first point equal to the current position. A refused goal returns the MotoROS2 code
+velocity; first point equal to the current position. As on the real robots, a trajectory starts as
+soon as it is received (`header.stamp` is ignored). A refused goal returns the MotoROS2 code
 (for example `-100202`: too many points; `-100106`: servos off, call `start_traj_mode`).
 
 Gripper: on the real robots a background job opens, closes or initialises the gripper when
@@ -47,14 +48,13 @@ values and logs the request; the simulated gripper is not modelled yet.
 
 ## Install and build
 
-The MotoROS2 message and service definitions are not in apt; they are built from source, as on
-the PC that drives the real robots:
+The workspace is described in the [root README](../../README.md): the external repositories,
+including the MotoROS2 message definitions (not in apt), are pinned in `pge.repos`.
 
 ```bash
 cd ~/mfja_ws
-git clone -b master https://github.com/yaskawa-global/motoros2_client_interface_dependencies.git src/motoros2_client_interface_dependencies
-vcs import --input src/motoros2_client_interface_dependencies/source_deps.repos src/
-rosdep install --from-paths src/PGE/yaskawa src/motoros2_client_interface_dependencies src/yaskawa-global src/ros-industrial --ignore-src -y
+vcs import --skip-existing --input src/PGE/pge.repos src/
+rosdep install --from-paths src/PGE src/motoros2_client_interface_dependencies src/yaskawa-global src/ros-industrial --ignore-src -y
 colcon build --symlink-install --packages-up-to mfja_yaskawa
 source install/setup.bash
 ```
@@ -99,18 +99,34 @@ The first point must be the current position (all zeros right after launch).
 
 ## Using the real-robot tools against the simulation
 
-With `mfja_ros2_yaskawa` in the same workspace:
+The tools of [mfja_ros2_yaskawa](https://github.com/aip-primeca-occitanie/mfja_ros2_yaskawa), used on the
+real robots, run unchanged against steps 2 to 4. This is the acceptance test of the simulation.
 
-- **Trajectory script, real-robot mode** (no `--sim`): works against steps 2 to 4.
-  ```bash
-  ros2 run mfja_motoman_hc10 execute_trajectory.py $TRAJ_PATH/trajectory.csv --robot right
-  ```
-- **MoveIt, real-robot mode**: use the mock launch (MoveIt there runs on wall-clock time) and let
-  MoveIt publish the TF:
-  ```bash
-  ros2 launch mfja_yaskawa_bringup yaskawa_mock.launch.py robot_model:=hc10 publish_robot_tf:=false
-  ros2 launch motoman_hc10_moveit_config demo_mfja.launch.py robot:=right hardware:=real
-  ```
+**Trajectory script, real-robot mode** (without `--sim`), with the simulation of step 3 running.
+Build `mfja_motoman_hc10` without `--symlink-install`: its scripts are not marked executable in its
+repository, so only the copy made at install time can be run.
+
+```bash
+colcon build --packages-select mfja_motoman_hc10
+source install/setup.bash
+export TRAJ_PATH=~/mfja_ws/src/mfja_ros2_yaskawa/mfja_motoman_hc10/trajectories
+ros2 run mfja_motoman_hc10 execute_trajectory.py $TRAJ_PATH/test_right_1.csv --robot right
+ros2 run mfja_motoman_hc10 execute_trajectory.py $TRAJ_PATH/trajectory.csv --robot left
+```
+
+Expected, for each arm: "Trajectory Executor for REAL hardware", trajectory mode enabled,
+"Lead-In execution SUCCESSFUL", "Main CSV Trajectory execution SUCCESSFUL", then `stop_traj_mode`.
+`test_right_1.csv` is meant for the HC10 (right) and `trajectory.csv` for the HC10DT (left): their
+joint 3 values only fit the range of the matching arm.
+
+**MoveIt, real-robot mode** (needs MoveIt 2: `sudo apt install ros-jazzy-moveit`): use the mock
+launch, because this MoveIt launch runs on wall-clock time, and let MoveIt publish the TF:
+
+```bash
+colcon build --symlink-install --packages-up-to motoman_hc10_moveit_config motoman_hc10_support
+ros2 launch mfja_yaskawa_bringup yaskawa_mock.launch.py robot_model:=hc10 publish_robot_tf:=false
+ros2 launch motoman_hc10_moveit_config demo_mfja.launch.py robot:=right hardware:=real
+```
 
 ## Still to check on the real robots
 

@@ -1,0 +1,36 @@
+# External repositories of the PGE workspace (vcstool format), with pinned versions.
+#
+# From the workspace root (for example ~/mfja_ws), with this repository in src/PGE:
+#   vcs import --skip-existing --input src/PGE/pge.repos src/
+#
+# --skip-existing leaves repositories that are already cloned untouched.
+repositories:
+  # Digital twin of the MFJA 3rd floor (Gazebo Harmonic, ROS 2 Jazzy), reference branch.
+  mfja_3rd_floor_gz:
+    type: git
+    url: https://github.com/aip-primeca-occitanie/mfja_3rd_floor_gz.git
+    version: INTERNSHIP-ALI-2026
+  # Real Yaskawa arms through MotoROS2: scripts and MoveIt configuration (D. Bury).
+  mfja_ros2_yaskawa:
+    type: git
+    url: https://github.com/aip-primeca-occitanie/mfja_ros2_yaskawa.git
+    version: 3e158ba4e0c780c62f91a80f6f4b4d5de2b245ae
+  # Official Yaskawa ROS 2 robot descriptions (motoman_hc10_support, ...).
+  motoman_ros2_support_packages:
+    type: git
+    url: https://github.com/Yaskawa-Global/motoman_ros2_support_packages.git
+    version: a77f186048bd3c35fc3bb5142f9d9270dbebe69f
+  # MotoROS2 message, service and action definitions (client side), as listed in
+  # motoros2_client_interface_dependencies/source_deps.repos.
+  motoros2_client_interface_dependencies:
+    type: git
+    url: https://github.com/yaskawa-global/motoros2_client_interface_dependencies.git
+    version: 873b5aa8286f90d09403bdc7ec6a4649b4df16eb
+  yaskawa-global/motoros2_interfaces:
+    type: git
+    url: https://github.com/yaskawa-global/motoros2_interfaces.git
+    version: 0.2.0
+  ros-industrial/industrial_core_ros2_msgs_only:
+    type: git
+    url: https://github.com/ros-industrial/industrial_core.git
+    version: d547cdcfdaf3bc0d46325215b8219b0a190c8e6c
