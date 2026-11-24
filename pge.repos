@@ -20,6 +20,12 @@ repositories:
     type: git
     url: https://github.com/Yaskawa-Global/motoman_ros2_support_packages.git
     version: a77f186048bd3c35fc3bb5142f9d9270dbebe69f
+  # ros2_control hardware interface for MotoROS2 (b-robotized): real arms on joint_trajectory_controller.
+  # Local build patch in patches/motoros2_hw_interfaces.
+  motoros2_hw_interfaces:
+    type: git
+    url: https://github.com/b-robotized/motoros2_hw_interfaces.git
+    version: dd1827bb5b11c2efaca4894cce2fc1f10764ace9
   # MotoROS2 message, service and action definitions (client side), as listed in
   # motoros2_client_interface_dependencies/source_deps.repos.
   motoros2_client_interface_dependencies:

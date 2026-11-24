@@ -3,8 +3,7 @@
   ros2_control system without simulator: mock_components/GenericSystem copies each
   command to the matching state. First test step for the controllers (poly ch. 22.8.2).
 
-  There is no hardware plugin for the real arms: they are driven by the vendor ROS 2
-  node running on the YRC1000micro controller, which is not a ros2_control interface.
+  The real arms use ros2_control/yaskawa_motoros2.ros2_control.xacro.
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:include filename="$(find mfja_yaskawa_description)/ros2_control/yaskawa_joints.xacro"/>

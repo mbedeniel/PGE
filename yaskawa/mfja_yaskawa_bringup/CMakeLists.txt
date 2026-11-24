@@ -8,4 +8,9 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
+install(
+  PROGRAMS scripts/move_joint.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_package()

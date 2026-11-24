@@ -3,17 +3,21 @@
   Chooses the ros2_control part of the description:
     gz_sim=true             Gazebo (gazebo/yaskawa_gazebo.urdf.xacro)
     use_mock_hardware=true  mock hardware (ros2_control/yaskawa_mock.ros2_control.xacro)
-    both false              no ros2_control tag (real robot, driven by the vendor ROS 2 node)
+    use_real_hardware=true  real arm through MotoROS2 (ros2_control/yaskawa_motoros2.ros2_control.xacro)
+    all false               no ros2_control tag (display only)
+  The first true one wins, in this order. The real hardware is never chosen by default.
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:include filename="$(find mfja_yaskawa_description)/gazebo/yaskawa_gazebo.urdf.xacro"/>
   <xacro:include filename="$(find mfja_yaskawa_description)/ros2_control/yaskawa_mock.ros2_control.xacro"/>
+  <xacro:include filename="$(find mfja_yaskawa_description)/ros2_control/yaskawa_motoros2.ros2_control.xacro"/>
 
   <xacro:macro name="yaskawa_control"
-               params="name prefix gz_sim use_mock_hardware robot_namespace
+               params="name prefix gz_sim use_mock_hardware use_real_hardware robot_namespace
                        controller_params_file initial_positions_file">
     <xacro:property name="use_gz" value="${str(gz_sim).lower() == 'true'}"/>
     <xacro:property name="use_mock" value="${str(use_mock_hardware).lower() == 'true'}"/>
+    <xacro:property name="use_real" value="${str(use_real_hardware).lower() == 'true'}"/>
     <xacro:property name="initial_positions" value="${xacro.load_yaml(initial_positions_file)}"/>
 
     <xacro:if value="${use_gz}">
@@ -25,6 +29,10 @@
     <xacro:if value="${use_mock and not use_gz}">
       <xacro:yaskawa_mock_ros2_control name="${name}" prefix="${prefix}"
                                        initial_positions="${initial_positions}"/>
+    </xacro:if>
+    <xacro:if value="${use_real and not use_gz and not use_mock}">
+      <xacro:yaskawa_motoros2_ros2_control name="${name}" prefix="${prefix}"
+                                           robot_namespace="${robot_namespace}"/>
     </xacro:if>
   </xacro:macro>
 </robot>

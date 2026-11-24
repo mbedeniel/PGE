@@ -6,6 +6,8 @@
     robot_namespace         ROS namespace given to the Gazebo plugin (several arms in one world)
     gz_sim                  true: Gazebo (gz_ros2_control)
     use_mock_hardware       true: mock_components/GenericSystem (when gz_sim is false)
+    use_real_hardware       true: real arm through MotoROS2 (motoros2_hw_interfaces), when the two
+                            above are false; robot_namespace then names the MotoROS2 namespace
     controller_params_file  controller_manager parameters loaded by the Gazebo plugin
     initial_positions_file  initial joint positions (rad)
     prefix                  prefix of link and joint names (none on the real robots)
@@ -14,6 +16,7 @@
   <xacro:arg name="robot_namespace" default=""/>
   <xacro:arg name="gz_sim" default="false"/>
   <xacro:arg name="use_mock_hardware" default="false"/>
+  <xacro:arg name="use_real_hardware" default="false"/>
   <xacro:arg name="controller_params_file" default=""/>
   <xacro:arg name="initial_positions_file"
              default="$(find mfja_yaskawa_description)/config/initial_positions.yaml"/>
@@ -35,6 +38,7 @@
   <xacro:yaskawa_control name="yaskawa_hc10dt" prefix="$(arg prefix)"
                          gz_sim="$(arg gz_sim)"
                          use_mock_hardware="$(arg use_mock_hardware)"
+                         use_real_hardware="$(arg use_real_hardware)"
                          robot_namespace="$(arg robot_namespace)"
                          controller_params_file="$(arg controller_params_file)"
                          initial_positions_file="$(arg initial_positions_file)"/>

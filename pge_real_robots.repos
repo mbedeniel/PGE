@@ -1,0 +1,20 @@
+# Repositories needed on the PC that drives the real Yaskawa arms (MFJA, room 315), with pinned versions.
+# Subset of pge.repos: no digital twin, no simulation. This repository is cloned first in src/PGE.
+#
+# From the workspace root (for example ~/pge_ws):
+#   vcs import --input src/PGE/pge_real_robots.repos src/
+repositories:
+  # ros2_control hardware interface for MotoROS2 (b-robotized): real arms on joint_trajectory_controller.
+  motoros2_hw_interfaces:
+    type: git
+    url: https://github.com/b-robotized/motoros2_hw_interfaces.git
+    version: dd1827bb5b11c2efaca4894cce2fc1f10764ace9
+  # MotoROS2 message, service and action definitions, same versions as in pge.repos.
+  yaskawa-global/motoros2_interfaces:
+    type: git
+    url: https://github.com/yaskawa-global/motoros2_interfaces.git
+    version: 0.2.0
+  ros-industrial/industrial_core_ros2_msgs_only:
+    type: git
+    url: https://github.com/ros-industrial/industrial_core.git
+    version: d547cdcfdaf3bc0d46325215b8219b0a190c8e6c

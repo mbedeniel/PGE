@@ -13,7 +13,7 @@ following the organisation of the MOTKIN example (course notes, ch. 22–23).
 |---|---|
 | `mfja_yaskawa` | Metapackage, this documentation |
 | `mfja_yaskawa_description` | Root files `robots/hc10_robot.urdf.xacro` and `robots/hc10dt_robot.urdf.xacro`, arm macros and meshes from Yaskawa's ROS 2 support package, `ros2_control/` (mock hardware), `gazebo/` (gz_ros2_control), `show.launch.py` |
-| `mfja_yaskawa_bringup` | Controller configuration, launch with mock hardware (no simulator) |
+| `mfja_yaskawa_bringup` | Controller configuration, launch with mock hardware (no simulator), launch of the real arms on ros2_control, test script `move_joint.py` |
 | `mfja_yaskawa_gazebo` | Gazebo launches (empty world or the running twin), cell file |
 | `mfja_yaskawa_motoros2_sim` | Imitation of the MotoROS2 interface in front of the simulated controllers |
 
@@ -54,10 +54,14 @@ including the MotoROS2 message definitions (not in apt), are pinned in `pge.repo
 ```bash
 cd ~/mfja_ws
 vcs import --skip-existing --input src/PGE/pge.repos src/
-rosdep install --from-paths src/PGE src/motoros2_client_interface_dependencies src/yaskawa-global src/ros-industrial --ignore-src -y
+rosdep install --from-paths src/PGE src/motoros2_client_interface_dependencies src/yaskawa-global src/ros-industrial src/motoros2_hw_interfaces --ignore-src -y
+colcon build --symlink-install --packages-select motoros2_hw_interfaces --cmake-args -DBUILD_TESTING=OFF
 colcon build --symlink-install --packages-up-to mfja_yaskawa
 source install/setup.bash
 ```
+
+Before the first build of `motoros2_hw_interfaces`, apply its local patch
+([`patches/motoros2_hw_interfaces`](../../patches/motoros2_hw_interfaces/README.md)).
 
 Sourcing the workspace adds the description to `GZ_SIM_RESOURCE_PATH` so that Gazebo finds the meshes.
 
@@ -97,6 +101,12 @@ ros2 service call /yaskawa_RIGHT/write_single_io motoros2_interfaces/srv/WriteSi
 ros2 service call /yaskawa_RIGHT/stop_traj_mode std_srvs/srv/Trigger {}
 ```
 
+Through ros2_control, as on the real arms in [ros2_control mode](#real-robots-on-ros2_control-motoros2_hw_interfaces):
+
+```bash
+ros2 run mfja_yaskawa_bringup move_joint.py --robot right --joint 6 --delta 0.1 --back
+```
+
 The first point must be the current position (all zeros right after launch).
 
 ## Using the real-robot tools against the simulation
@@ -129,6 +139,86 @@ colcon build --symlink-install --packages-up-to motoman_hc10_moveit_config motom
 ros2 launch mfja_yaskawa_bringup yaskawa_mock.launch.py robot_model:=hc10 publish_robot_tf:=false
 ros2 launch motoman_hc10_moveit_config demo_mfja.launch.py robot:=right hardware:=real
 ```
+
+## Real robots on ros2_control (motoros2_hw_interfaces)
+
+The real arms can run on the same `joint_trajectory_controller` as the simulation. The hardware
+plugin [`motoros2_hw_interfaces`](https://github.com/b-robotized/motoros2_hw_interfaces) runs on the
+PC: it reads `<ns>/joint_states` from MotoROS2 and sends the command of every control cycle to the
+MotoROS2 service `<ns>/queue_traj_point` (point-queue mode). Nothing is installed on the robot
+controller. Trajectories are no longer limited to 200 points.
+
+| | Simulation | Real arm, ros2_control |
+|---|---|---|
+| Launch | `yaskawa_gazebo.launch.py`, `yaskawa_mock.launch.py` | `yaskawa_real.launch.py` |
+| Controllers file | `config/yaskawa_controllers.yaml` | `config/yaskawa_controllers_real.yaml` |
+| Command interfaces | position | position + velocity (required by the plugin) |
+| Trajectory action | `<ns>/arm_controller/follow_joint_trajectory` | the same |
+| `<ns>/joint_states` | joint_state_broadcaster | MotoROS2 (the broadcaster publishes on `<ns>/joint_state_broadcaster/joint_states`) |
+
+On the PC that drives the robots, these packages live in their own workspace, built and used in a
+shell that loads ROS only: see "Workspace on the PC that drives the robots" in the [root README](../../README.md).
+
+In this mode MotoROS2's own `follow_joint_trajectory` refuses goals: do not run the scripts of
+`mfja_ros2_yaskawa` or its MoveIt launch at the same time. `move_joint.py` works in both cases.
+
+### Procedure, one arm at a time
+
+Before starting: the platform manager has agreed to the test, the teach pendant is in hand with its
+emergency stop, the key is on REMOTE, nobody is in the arm's reach, and the micro-ROS agent runs.
+Commands for the right arm; for the left one use `robot_model:=hc10dt`, `yaskawa_LEFT` and `--robot left`.
+
+0. **Script in simulation first** (no robot):
+   ```bash
+   ros2 launch mfja_yaskawa_bringup yaskawa_mock.launch.py robot_model:=hc10
+   ros2 run mfja_yaskawa_bringup move_joint.py --robot right --joint 6 --delta 0.1 --back
+   ```
+1. **MotoROS2 answers** (joints named `joint_1` … `joint_6`, both services listed):
+   ```bash
+   ros2 topic echo --once /yaskawa_RIGHT/joint_states
+   ros2 service list | grep -E "yaskawa_RIGHT/(start_point_queue_mode|queue_traj_point)"
+   ```
+2. **ros2_control without motion** (`arm_controller` is loaded inactive, nothing is sent):
+   ```bash
+   ros2 launch mfja_yaskawa_bringup yaskawa_real.launch.py robot_model:=hc10
+   ros2 control list_hardware_components -c /yaskawa_RIGHT/controller_manager
+   ros2 control list_controllers -c /yaskawa_RIGHT/controller_manager
+   ros2 topic echo --once /yaskawa_RIGHT/joint_state_broadcaster/joint_states
+   ```
+   The hardware component is `active`, `joint_state_broadcaster` active, `arm_controller` inactive,
+   and the broadcaster's positions are those of `/yaskawa_RIGHT/joint_states` (not all zeros).
+3. **Point-queue mode** (servos on, still no motion):
+   ```bash
+   ros2 service call /yaskawa_RIGHT/start_point_queue_mode motoros2_interfaces/srv/StartPointQueueMode {}
+   ```
+   Expected `result_code` value 1 (READY). Otherwise read the message and `robot_status`
+   (`reset_error` clears alarms).
+4. **Activate the controller**: the arm holds its position and must not move.
+   ```bash
+   ros2 control switch_controllers -c /yaskawa_RIGHT/controller_manager --activate arm_controller
+   ros2 topic list | grep write_stats
+   ros2 topic echo <write_stats topic listed above>
+   ```
+   `write_stats` counts the points sent and refused; failures should stay close to 0 %.
+5. **Small motion** of the last joint, then back:
+   ```bash
+   ros2 run mfja_yaskawa_bringup move_joint.py --robot right --joint 6 --delta 0.1 --back
+   ```
+   Then other joints with small angles. Ctrl+C cancels the goal and the arm stops.
+   More than 200 points: add `--points 300`.
+6. **Stop**:
+   ```bash
+   ros2 control switch_controllers -c /yaskawa_RIGHT/controller_manager --deactivate arm_controller
+   # Ctrl+C on the launch, then:
+   ros2 service call /yaskawa_RIGHT/stop_traj_mode std_srvs/srv/Trigger {}
+   ```
+
+After an emergency stop or a MotoROS2 alarm: deactivate `arm_controller`, call `reset_error`, then
+`start_point_queue_mode`, then activate `arm_controller` again. MotoROS2 refuses a first point that is
+not the current position, so the arm cannot jump to an old command.
+
+The control loop runs at 50 Hz (one MotoROS2 service call per cycle). If `write_stats` shows almost no
+failures, 100 Hz can be tried (`update_rate` in `config/yaskawa_controllers_real.yaml`).
 
 ## Still to check on the real robots
 
