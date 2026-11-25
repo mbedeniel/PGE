@@ -136,8 +136,9 @@ def main():
         rclpy.spin_until_future_complete(node, future, timeout_sec=5.0)
         goal_handle = future.result()
         if goal_handle is None or not goal_handle.accepted:
-            sys.exit('Goal REJECTED (is arm_controller active? does the trajectory start '
-                     'at the current position?)')
+            sys.exit('Goal REJECTED. Is arm_controller active (start_point_queue_mode, then '
+                     'switch_controllers --activate arm_controller)? Does the trajectory start at '
+                     'the current position?')
         print('Goal accepted; Ctrl+C cancels it.')
 
         result_future = goal_handle.get_result_async()

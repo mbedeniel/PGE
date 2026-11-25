@@ -9,6 +9,14 @@
     start_tolerance: 0.01
     check_goals: true
     status_rate: 10.0
+    # Start-up as on the real arms: arm_controller is loaded inactive by the launches.
+    # Trajectory mode (start_traj_mode): MotoROS2 executes the trajectories itself; in simulation
+    # they go through this controller, so start_traj_mode activates it and stop_traj_mode
+    # deactivates it again. Point-queue mode (start_point_queue_mode): the controller is
+    # activated by hand, as on the real arms.
+    controller_name: arm_controller
+    controller_manager: controller_manager
+    activate_controller_in_traj_mode: true
     # Gripper requests watched by the background job of each controller:
     # OT#100 init, OT#101 open, OT#102 close. Addresses computed with the
     # Yaskawa numbering (OT#n -> 10000 + 10*((n-1)//8 + 1) + (n-1)%8); confirm on the pendant.

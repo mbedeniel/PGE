@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>mfja_yaskawa_bringup</name>
-  <version>0.6.0</version>
+  <version>0.7.0</version>
   <description>
     Controller configuration and launch files of the MFJA Room 315 Yaskawa arms outside Gazebo:
     mock hardware, and the real arms on ros2_control through MotoROS2 (motoros2_hw_interfaces).

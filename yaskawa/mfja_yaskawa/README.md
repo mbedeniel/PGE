@@ -46,7 +46,6 @@ MotoROS2 on the real arms and by its imitation (`mfja_yaskawa_motoros2_sim`) in 
 |---|---|---|---|
 | Clock | simulated (forced by the Gazebo plugin) | wall clock | wall clock |
 | `arm_controller` command interfaces | position | position + velocity | position + velocity |
-| Start-up | controllers active at launch | controllers active at launch | `start_point_queue_mode`, then activation of `arm_controller` |
 | Gripper | not simulated yet | mock GPIO | `GPIOSystem` (MotoROS2 IO services) |
 
 - The MotoROS2 hardware interface requires position + velocity commands: each point it queues in
@@ -54,8 +53,33 @@ MotoROS2 on the real arms and by its imitation (`mfja_yaskawa_motoros2_sim`) in 
   and for the mock that rehearses them. Gazebo stays on position: when a joint receives both, the Gazebo
   plugin applies the velocity alone, so the simulated arm would follow speeds without correcting its
   position, whereas the real arm executes positions.
-- Aligning the start-up (the simulation waiting for `start_point_queue_mode`) and simulating the gripper
-  in Gazebo are the next steps.
+- Simulating the gripper in Gazebo is the next step.
+
+**Same start-up.** In every mode `arm_controller` is loaded inactive (launch argument
+`activate_arm_controller`, default `false`) and the arm does not move until a MotoROS2 motion mode is
+started. MotoROS2 has two modes, and only one can be active at a time:
+
+| | Trajectory mode | Point-queue mode |
+|---|---|---|
+| Started by | `start_traj_mode` | `start_point_queue_mode` |
+| Used by | MotoROS2's own `<ns>/follow_joint_trajectory` (scripts and MoveIt of `mfja_ros2_yaskawa`) | `arm_controller` through ros2_control (`move_joint.py`, our launches) |
+| Then | send the trajectory | activate `arm_controller` by hand |
+| Refused in this mode | `start_point_queue_mode` | `start_traj_mode`, and goals sent to `<ns>/follow_joint_trajectory` |
+| Stop | `stop_traj_mode` | deactivate `arm_controller`, then `stop_traj_mode` |
+
+The MotoROS2 imitation (`mfja_yaskawa_motoros2_sim`) applies these rules with the MotoROS2 result codes.
+Two differences remain, both due to the simulation:
+
+- In trajectory mode the real MotoROS2 executes the trajectory itself, without ros2_control. In
+  simulation the trajectory goes through `arm_controller`, so `start_traj_mode` activates it and
+  `stop_traj_mode` deactivates it again. The tools of `mfja_ros2_yaskawa` therefore run unchanged.
+- A simulated arm cannot refuse a command: if `arm_controller` is activated without
+  `start_point_queue_mode`, the simulated arm still moves, whereas the real arm refuses every point.
+  On the real arm, the hardware interface also keeps sending the last point after `arm_controller` is
+  deactivated, so its launch must be stopped (Ctrl+C) before `stop_traj_mode` is accepted.
+
+While `arm_controller` is inactive, the joints are held where they are: by the brakes on the real arms,
+by the Gazebo plugin (`hold_joints`, on by default) and by the mock hardware in simulation.
 
 ## Interface (identical in simulation and on the real robots)
 
@@ -66,17 +90,20 @@ In the namespace of each robot (`/yaskawa_LEFT/...`, `/yaskawa_RIGHT/...`):
 | `follow_joint_trajectory` | action `control_msgs/action/FollowJointTrajectory` | Execute a trajectory |
 | `joint_states` | topic `sensor_msgs/msg/JointState` | Joints `joint_1` … `joint_6` |
 | `robot_status` | topic `industrial_msgs/msg/RobotStatus` | Mode, servos, motion, errors |
-| `start_traj_mode` | service `motoros2_interfaces/srv/StartTrajMode` | Servos on, trajectory mode (needed before any motion) |
-| `stop_traj_mode` | service `std_srvs/srv/Trigger` | Leave trajectory mode |
+| `start_traj_mode` | service `motoros2_interfaces/srv/StartTrajMode` | Servos on, trajectory mode (needed before `follow_joint_trajectory`) |
+| `start_point_queue_mode` | service `motoros2_interfaces/srv/StartPointQueueMode` | Servos on, point-queue mode (needed before activating `arm_controller`) |
+| `stop_traj_mode` | service `std_srvs/srv/Trigger` | Leave the active mode |
 | `reset_error` | service `motoros2_interfaces/srv/ResetError` | Clear errors |
 | `read_single_io`, `write_single_io` | services `motoros2_interfaces/srv/ReadSingleIO`, `WriteSingleIO` | Controller IO (gripper requests) |
 | `tf`, `tf_static` | topics | Transforms of the arm |
 
-Rules applied in simulation as MotoROS2 does: `start_traj_mode` first; 2 to 200 points;
+Rules applied in simulation as MotoROS2 does: one motion mode at a time (see "Same start-up" above);
+`follow_joint_trajectory` only in trajectory mode, so `start_traj_mode` first; 2 to 200 points;
 all six joints; positions and velocities in every point; strictly increasing times; zero final
 velocity; first point equal to the current position. As on the real robots, a trajectory starts as
 soon as it is received (`header.stamp` is ignored). A refused goal returns the MotoROS2 code
-(for example `-100202`: too many points; `-100106`: servos off, call `start_traj_mode`).
+(for example `-100202`: too many points; `-100106`: servos off, call `start_traj_mode`;
+`-100209`: wrong mode, point-queue mode is active).
 
 Gripper: on the real robots a background job opens, closes or initialises the gripper when
 OT#101, OT#102 or OT#100 goes from 0 to 1; these outputs are written with `write_single_io` at
@@ -138,13 +165,20 @@ ros2 service call /yaskawa_RIGHT/write_single_io motoros2_interfaces/srv/WriteSi
 ros2 service call /yaskawa_RIGHT/stop_traj_mode std_srvs/srv/Trigger {}
 ```
 
+The first point must be the current position (all zeros right after launch).
+
 Through ros2_control, as on the real arms in [ros2_control mode](#real-robots-on-ros2_control-motoros2_hw_interfaces):
 
 ```bash
+ros2 service call /yaskawa_RIGHT/start_point_queue_mode motoros2_interfaces/srv/StartPointQueueMode {}
+ros2 control switch_controllers -c /yaskawa_RIGHT/controller_manager --activate arm_controller
 ros2 run mfja_yaskawa_bringup move_joint.py --robot right --joint 6 --delta 0.1 --back
+ros2 control switch_controllers -c /yaskawa_RIGHT/controller_manager --deactivate arm_controller
+ros2 service call /yaskawa_RIGHT/stop_traj_mode std_srvs/srv/Trigger {}
 ```
 
-The first point must be the current position (all zeros right after launch).
+For quick tests in simulation only, `activate_arm_controller:=true` on the launch starts `arm_controller`
+active.
 
 ## Using the real-robot tools against the simulation
 
@@ -206,11 +240,17 @@ Before starting: the platform manager has agreed to the test, the teach pendant 
 emergency stop, the key is on REMOTE, nobody is in the arm's reach, and the micro-ROS agent runs.
 Commands for the right arm; for the left one use `robot_model:=hc10dt`, `yaskawa_LEFT` and `--robot left`.
 
-0. **Script in simulation first** (no robot). On a PC connected to the robots, use another ROS domain
-   in both terminals, so that the mock arm and the real one, which share the same names, never meet:
+0. **Rehearsal in simulation first** (no robot): the mock follows the same start-up as the real arm.
+   On a PC connected to the robots, use another ROS domain in both terminals, so that the mock arm and
+   the real one, which share the same names, never meet:
    ```bash
    export ROS_DOMAIN_ID=42
    ros2 launch mfja_yaskawa_bringup yaskawa_mock.launch.py robot_model:=hc10
+   ```
+   ```bash
+   export ROS_DOMAIN_ID=42
+   ros2 service call /yaskawa_RIGHT/start_point_queue_mode motoros2_interfaces/srv/StartPointQueueMode {}
+   ros2 control switch_controllers -c /yaskawa_RIGHT/controller_manager --activate arm_controller
    ros2 run mfja_yaskawa_bringup move_joint.py --robot right --joint 6 --delta 0.1 --back
    ```
    Then close both terminals: the next steps run in the robots' domain.

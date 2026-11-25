@@ -6,6 +6,8 @@
 
 Each arm is spawned by yaskawa_spawn.launch.py in its own namespace
 (cell file: config/yaskawa_cell.yaml), with the MotoROS2 interface of the real robot.
+As on the real arms, arm_controller starts inactive: call start_traj_mode (MotoROS2 trajectories),
+or start_point_queue_mode and then activate arm_controller (ros2_control).
 """
 
 import os
@@ -85,6 +87,7 @@ def _launch_setup(context):
                 'z': str(pose['z']),
                 'yaw': str(pose['yaw']),
                 'motoros2_sim': arg('motoros2_sim'),
+                'activate_arm_controller': arg('activate_arm_controller'),
                 'publish_robot_tf': arg('publish_robot_tf'),
             }.items(),
         ))
@@ -110,6 +113,9 @@ def generate_launch_description():
                               description='standalone or room_315 (default depends on start_gazebo).'),
         DeclareLaunchArgument('motoros2_sim', default_value='true',
                               description='Start the MotoROS2 interface imitation for each arm.'),
+        DeclareLaunchArgument('activate_arm_controller', default_value='false',
+                              description='true: start arm_controller active. Default false, as on '
+                                          'the real arms.'),
         DeclareLaunchArgument('publish_robot_tf', default_value='true',
                               description='false: simulated TF on <ns>/sim_tf (leave <ns>/tf to MoveIt).'),
         DeclareLaunchArgument('cell_file', default_value=default_cell_file,

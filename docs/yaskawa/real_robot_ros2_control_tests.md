@@ -72,11 +72,27 @@ After the alignment described in the Yaskawa README ("Same controllers in simula
 
 The regression on the real right arm with this configuration is the next step at the platform.
 
+## Same start-up in simulation, 25/11/2026 (development laptop, Gazebo)
+
+After the alignment described in the Yaskawa README ("Same start-up"), right arm unless stated:
+
+| Check | Result |
+|---|---|
+| `arm_controller` at launch | Inactive; both arms held still |
+| `move_joint.py` before any motion mode | Refused (controller not running) |
+| `start_point_queue_mode` | READY (1) |
+| `start_traj_mode` while point-queue mode is active | Refused, code 114 ("Another trajectory mode is already active") |
+| Activation of `arm_controller`, then `move_joint.py` (joint 6, 0.1 rad and back) | Passed |
+| `stop_traj_mode` with `arm_controller` active | Refused ("increment queue not empty"), as on the real arm |
+| `stop_traj_mode` after deactivating `arm_controller` | Accepted |
+| `execute_trajectory.py` of `mfja_ros2_yaskawa` (trajectory mode), both arms | Passed; `arm_controller` inactive again afterwards |
+
 ## Next
 
 1. Real right arm: regression with the shared configuration, a real emergency stop followed by the recovery
    sequence, an emergency stop during motion, a motion of several joints at once, an endurance run.
 2. The same tests on the left arm.
 3. Watch the call failure rate during motion; read the cause of the point refused by MotoROS2.
-4. Simulation: the arms waiting for `start_point_queue_mode` like the real ones, then the gripper in Gazebo.
+4. Simulation: the gripper in Gazebo. The start-up is now the same as on the real arms (Yaskawa README,
+   "Same start-up"); the real procedure is unchanged.
 5. Gripper: effect of the "init" output (OT#100).

@@ -6,6 +6,7 @@ real robots, so that client code (scripts, MoveIt) works unchanged in simulation
   action   follow_joint_trajectory  control_msgs/action/FollowJointTrajectory
   topic    robot_status             industrial_msgs/msg/RobotStatus
   services start_traj_mode          motoros2_interfaces/srv/StartTrajMode
+           start_point_queue_mode   motoros2_interfaces/srv/StartPointQueueMode
            stop_traj_mode           std_srvs/srv/Trigger
            reset_error              motoros2_interfaces/srv/ResetError
            read_single_io           motoros2_interfaces/srv/ReadSingleIO
@@ -20,6 +21,20 @@ where MotoROS2 publishes it and ros2_control republishes it on the local topic.
 Goals are checked like MotoROS2 does (trajectory mode, 2 to max_points points, all joints,
 velocities, increasing times, zero final velocity, start at the current position), then
 forwarded to the joint_trajectory_controller of the simulation, to start at once as MotoROS2 does.
+
+Start-up, as on the real arms (see motion_mode.py): nothing moves before a motion mode is started,
+and only one mode is active at a time.
+- Trajectory mode (start_traj_mode): MotoROS2 executes follow_joint_trajectory goals itself. In
+  simulation the goals go through arm_controller, so start_traj_mode activates it when it is inactive
+  and stop_traj_mode deactivates it again (parameter activate_controller_in_traj_mode).
+- Point-queue mode (start_point_queue_mode): on the real arms the ros2_control hardware interface
+  sends one point per control cycle, and arm_controller is activated by hand afterwards. Here the
+  service only records the mode; activating arm_controller is left to the user, as on the real arms.
+  stop_traj_mode is refused while arm_controller is active, as MotoROS2 refuses it while points are
+  still being sent. queue_traj_point itself is not imitated: in simulation the controller writes to
+  the simulated joints directly.
+Simulation cannot refuse motion: arm_controller activated without start_point_queue_mode still moves
+the simulated arm, whereas the real arm refuses every point.
 """
 
 import threading
@@ -27,10 +42,12 @@ import threading
 import rclpy
 from control_msgs.action import FollowJointTrajectory
 from industrial_msgs.msg import RobotMode, RobotStatus, TriState
-from motoros2_interfaces.msg import IoResultCodes, MotionReadyEnum
+from controller_manager_msgs.srv import ListControllers, SwitchController
+from motoros2_interfaces.msg import InitTrajEnum, IoResultCodes, MotionReadyEnum
 from motoros2_interfaces.srv import (
     ReadSingleIO,
     ResetError,
+    StartPointQueueMode,
     StartTrajMode,
     WriteSingleIO,
 )
@@ -42,7 +59,14 @@ from sensor_msgs.msg import JointState
 from std_srvs.srv import Trigger
 from action_msgs.msg import GoalStatus
 
+from mfja_yaskawa_motoros2_sim import motion_mode as mm
 from mfja_yaskawa_motoros2_sim import trajectory_checks as checks
+
+MODE_MESSAGES = {
+    mm.READY: '',
+    mm.NOT_READY_OTHER_TRAJ_MODE_ACTIVE: MotionReadyEnum.NOT_READY_OTHER_TRAJ_MODE_ACTIVE_STR,
+    mm.NOT_READY_ERROR: 'The controller has an active Error (simulated). Call reset_error.',
+}
 
 
 class MotoROS2Sim(Node):
@@ -55,6 +79,9 @@ class MotoROS2Sim(Node):
         self.declare_parameter('start_tolerance', 0.01)
         self.declare_parameter('check_goals', True)
         self.declare_parameter('status_rate', 10.0)
+        self.declare_parameter('controller_name', 'arm_controller')
+        self.declare_parameter('controller_manager', 'controller_manager')
+        self.declare_parameter('activate_controller_in_traj_mode', True)
         self.declare_parameter('gripper_init_address', 10133)   # OT#100, to confirm on the pendant
         self.declare_parameter('gripper_open_address', 10134)   # OT#101
         self.declare_parameter('gripper_close_address', 10135)  # OT#102
@@ -63,6 +90,10 @@ class MotoROS2Sim(Node):
         self._max_points = int(self.get_parameter('max_points').value)
         self._start_tolerance = float(self.get_parameter('start_tolerance').value)
         self._check_goals = bool(self.get_parameter('check_goals').value)
+        self._controller_name = self.get_parameter('controller_name').value
+        controller_manager = self.get_parameter('controller_manager').value.rstrip('/')
+        self._traj_mode_activates = bool(
+            self.get_parameter('activate_controller_in_traj_mode').value)
         self._gripper = {
             int(self.get_parameter('gripper_init_address').value): 'init',
             int(self.get_parameter('gripper_open_address').value): 'open',
@@ -70,7 +101,8 @@ class MotoROS2Sim(Node):
         }
 
         self._lock = threading.Lock()
-        self._traj_mode = False
+        self._mode = None                     # None, mm.TRAJECTORY or mm.POINT_QUEUE
+        self._activated_by_traj_mode = False  # arm_controller activated by start_traj_mode
         self._in_error = False
         self._error_codes = []
         self._in_motion = False
@@ -88,6 +120,8 @@ class MotoROS2Sim(Node):
 
         self.create_service(StartTrajMode, 'start_traj_mode', self._start_traj_mode,
                             callback_group=group)
+        self.create_service(StartPointQueueMode, 'start_point_queue_mode',
+                            self._start_point_queue_mode, callback_group=group)
         self.create_service(Trigger, 'stop_traj_mode', self._stop_traj_mode, callback_group=group)
         self.create_service(ResetError, 'reset_error', self._reset_error, callback_group=group)
         self.create_service(ReadSingleIO, 'read_single_io', self._read_single_io,
@@ -95,6 +129,10 @@ class MotoROS2Sim(Node):
         self.create_service(WriteSingleIO, 'write_single_io', self._write_single_io,
                             callback_group=group)
 
+        self._list_client = self.create_client(
+            ListControllers, f'{controller_manager}/list_controllers', callback_group=group)
+        self._switch_client = self.create_client(
+            SwitchController, f'{controller_manager}/switch_controller', callback_group=group)
         self._client = ActionClient(
             self, FollowJointTrajectory, self.get_parameter('controller_action').value,
             callback_group=group)
@@ -108,7 +146,8 @@ class MotoROS2Sim(Node):
         self.get_logger().info(
             f'MotoROS2 imitation ready in {self.get_namespace()}: '
             f'joints {self._joints}, at most {self._max_points} points per trajectory. '
-            'Call start_traj_mode before sending a trajectory, as on the real robot.')
+            'As on the real robot, call start_traj_mode (MotoROS2 trajectories) or '
+            f'start_point_queue_mode (then activate {self._controller_name}) before any motion.')
 
     # ----------------------------------------------------------------- state
     def _on_joint_states(self, msg):
@@ -126,36 +165,108 @@ class MotoROS2Sim(Node):
             msg.header.stamp = self.get_clock().now().to_msg()
             msg.mode = RobotMode(val=RobotMode.AUTO)
             msg.e_stopped = tri(False)
-            msg.drives_powered = tri(self._traj_mode)
-            msg.motion_possible = tri(self._traj_mode and not self._in_error)
+            msg.drives_powered = tri(self._mode is not None)
+            msg.motion_possible = tri(self._mode is not None and not self._in_error)
             msg.in_motion = tri(self._in_motion)
             msg.in_error = tri(self._in_error)
             msg.error_codes = list(self._error_codes)
         self._status_pub.publish(msg)
 
     # -------------------------------------------------------------- services
-    def _start_traj_mode(self, _request, response):
-        with self._lock:
-            if self._in_error:
-                code = MotionReadyEnum.NOT_READY_ERROR
-                message = 'The controller has an active Error (simulated). Call reset_error.'
-            else:
-                self._traj_mode = True
-                code, message = MotionReadyEnum.READY, 'Ready'
+    async def _controller_state(self):
+        """State of the trajectory controller ('active', 'inactive', ...), or None if unknown."""
+        if not self._list_client.wait_for_service(timeout_sec=2.0):
+            return None
+        response = await self._list_client.call_async(ListControllers.Request())
+        for controller in response.controller:
+            if controller.name == self._controller_name:
+                return controller.state
+        return None
+
+    async def _set_controller_active(self, active):
+        """Activate or deactivate the trajectory controller. Return (changed, error message)."""
+        state = await self._controller_state()
+        if state is None:
+            return False, f'{self._controller_name} is not loaded (controller manager not reached).'
+        if (state == 'active') == active:
+            return False, ''
+        if not self._switch_client.wait_for_service(timeout_sec=2.0):
+            return False, 'switch_controller service not available.'
+        request = SwitchController.Request()
+        if active:
+            request.activate_controllers = [self._controller_name]
+        else:
+            request.deactivate_controllers = [self._controller_name]
+        request.strictness = SwitchController.Request.STRICT
+        request.timeout.sec = 5
+        response = await self._switch_client.call_async(request)
+        if not response.ok:
+            verb = 'activate' if active else 'deactivate'
+            return False, f'Could not {verb} {self._controller_name}.'
+        return True, ''
+
+    def _answer_start(self, service, response, code, message=None):
         response.result_code = MotionReadyEnum(value=code)
-        response.message = message
-        self.get_logger().info(f'start_traj_mode -> {code} {message}')
+        response.message = MODE_MESSAGES.get(code, '') if message is None else message
+        # One logging call per severity: rclpy refuses two severities from the same line.
+        if code == mm.READY:
+            self.get_logger().info(f'{service} -> {code} READY')
+        else:
+            self.get_logger().warning(f'{service} -> {code} {response.message}')
         return response
 
-    def _stop_traj_mode(self, _request, response):
+    async def _start_traj_mode(self, _request, response):
         with self._lock:
-            if self._in_motion:
-                response.success = False
-                response.message = 'Cannot stop trajectory mode while a motion is executed.'
-            else:
-                self._traj_mode = False
-                response.success = True
-                response.message = 'Trajectory mode stopped (servos stay on).'
+            code = mm.start_result(self._mode, mm.TRAJECTORY, self._in_error)
+            already = self._mode == mm.TRAJECTORY
+        if code != mm.READY:
+            return self._answer_start('start_traj_mode', response, code)
+        if self._traj_mode_activates and not already:
+            # Trajectory mode: MotoROS2 executes the goals itself; here they go through
+            # the simulated controller, which must therefore be active.
+            changed, error = await self._set_controller_active(True)
+            if error:
+                return self._answer_start('start_traj_mode', response,
+                                          MotionReadyEnum.NOT_READY_UNSPECIFIED, error)
+            self._activated_by_traj_mode = changed
+        with self._lock:
+            self._mode = mm.TRAJECTORY
+        return self._answer_start('start_traj_mode', response, mm.READY)
+
+    def _start_point_queue_mode(self, _request, response):
+        with self._lock:
+            code = mm.start_result(self._mode, mm.POINT_QUEUE, self._in_error)
+            if code == mm.READY:
+                self._mode = mm.POINT_QUEUE
+        self._answer_start('start_point_queue_mode', response, code)
+        if code == mm.READY:
+            self.get_logger().info(
+                f'Point-queue mode: activate {self._controller_name} to move the arm, as on the '
+                'real arms.')
+        return response
+
+    async def _stop_traj_mode(self, _request, response):
+        with self._lock:
+            mode, in_motion = self._mode, self._in_motion
+        streaming = mode == mm.POINT_QUEUE and (await self._controller_state()) == 'active'
+        if mm.stop_refused(mode, in_motion, streaming):
+            response.success = False
+            response.message = mm.QUEUE_NOT_EMPTY
+            hint = (f' Deactivate {self._controller_name} first (on the real arms, stop the '
+                    'ros2_control launch: its hardware interface keeps sending points).'
+                    if streaming else ' Wait for the end of the motion.')
+            self.get_logger().warning(f'stop_traj_mode refused: {response.message}.{hint}')
+            return response
+        if mode == mm.TRAJECTORY and self._activated_by_traj_mode:
+            _changed, error = await self._set_controller_active(False)
+            if error:
+                self.get_logger().warning(f'stop_traj_mode: {error}')
+            self._activated_by_traj_mode = False
+        with self._lock:
+            self._mode = None
+        response.success = True
+        response.message = ''
+        self.get_logger().info(f'stop_traj_mode: {mode or "no"} mode stopped')
         return response
 
     def _reset_error(self, _request, response):
@@ -220,15 +331,18 @@ class MotoROS2Sim(Node):
     async def _execute(self, goal_handle):
         trajectory = goal_handle.request.trajectory
         with self._lock:
-            traj_mode, in_motion = self._traj_mode, self._in_motion
+            mode, in_motion = self._mode, self._in_motion
             positions = dict(self._positions)
+        refusal = mm.goal_refusal(mode)
+        if refusal == mm.NOT_READY_SERVO_OFF:
+            return self._abort(goal_handle, checks.motoros2_error_code(refusal),
+                               MotionReadyEnum.NOT_READY_SERVO_OFF_STR)
+        if refusal == mm.INIT_TRAJ_WRONG_MODE:
+            return self._abort(goal_handle, checks.motoros2_error_code(refusal),
+                               InitTrajEnum.INIT_TRAJ_WRONG_MODE_STR)
         if in_motion:
             return self._abort(goal_handle, checks.motoros2_error_code(
                 checks.INIT_TRAJ_ALREADY_IN_MOTION), 'Already running a trajectory.')
-        if not traj_mode:
-            return self._abort(goal_handle, checks.motoros2_error_code(
-                MotionReadyEnum.NOT_READY_SERVO_OFF),
-                'Servo power is OFF. Please call start_traj_mode.')
         if self._check_goals:
             code, message = checks.check_trajectory(
                 trajectory.joint_names, trajectory.points, self._joints,

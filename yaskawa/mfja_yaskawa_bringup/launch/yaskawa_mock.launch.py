@@ -3,8 +3,11 @@
     ros2 launch mfja_yaskawa_bringup yaskawa_mock.launch.py robot_model:=hc10
 
 Starts, in the robot namespace: robot_state_publisher, ros2_control_node with
-mock_components/GenericSystem, joint_state_broadcaster, arm_controller and the
+mock_components/GenericSystem, joint_state_broadcaster, gripper_controller, arm_controller and the
 MotoROS2 interface imitation (same names as the real robot).
+Same start-up as the real arms: arm_controller is loaded inactive. Either call start_traj_mode
+(MotoROS2 trajectories; the imitation then activates arm_controller), or call
+start_point_queue_mode and activate arm_controller by hand. activate_arm_controller:=true skips this.
 The controllers are those of the real arms (config/yaskawa_controllers.yaml +
 config/yaskawa_controllers_motoros2.yaml): the mock rehearses the real configuration.
 Runs on wall-clock time, so MoveIt launches that use wall-clock time work against it.
@@ -15,7 +18,7 @@ import os
 import xacro
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, LogInfo, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -38,12 +41,19 @@ def _launch_setup(context):
     # Same controller files as the real arms: the mock rehearses them.
     controllers_files = [os.path.join(config, 'yaskawa_controllers.yaml'),
                          os.path.join(config, 'yaskawa_controllers_motoros2.yaml')]
+    activate = _as_bool(LaunchConfiguration('activate_arm_controller').perform(context))
+    arm_spawner_args = ['arm_controller', '--controller-manager', f'/{namespace}/controller_manager']
+    if not activate:
+        arm_spawner_args.append('--inactive')
     robot_description = xacro.process_file(
         os.path.join(description_share, 'robots', f'{model}_robot.urdf.xacro'),
         mappings={'use_mock_hardware': 'true'},
     ).toxml()
 
     actions = [
+        LogInfo(msg=f'Mock Yaskawa {model} in namespace /{namespace}; arm_controller '
+                    + ('ACTIVE' if activate else 'inactive (start_traj_mode, or '
+                       'start_point_queue_mode then activation, as on the real arms)')),
         Node(
             package='robot_state_publisher',
             executable='robot_state_publisher',
@@ -69,12 +79,15 @@ def _launch_setup(context):
             executable='spawner',
             namespace=namespace,
             output='screen',
-            arguments=[
-                'joint_state_broadcaster',
-                'arm_controller',
-                'gripper_controller',
-                '--controller-manager', f'/{namespace}/controller_manager',
-            ],
+            arguments=['joint_state_broadcaster', 'gripper_controller',
+                       '--controller-manager', f'/{namespace}/controller_manager'],
+        ),
+        Node(
+            package='controller_manager',
+            executable='spawner',
+            namespace=namespace,
+            output='screen',
+            arguments=arm_spawner_args,
         ),
     ]
     if _as_bool(LaunchConfiguration('motoros2_sim').perform(context)):
@@ -98,6 +111,9 @@ def generate_launch_description():
                               description='hc10 (right robot) or hc10dt (left robot).'),
         DeclareLaunchArgument('motoros2_sim', default_value='true',
                               description='Start the MotoROS2 interface imitation.'),
+        DeclareLaunchArgument('activate_arm_controller', default_value='false',
+                              description='true: start arm_controller active. Default false, as on '
+                                          'the real arms (see start_traj_mode, start_point_queue_mode).'),
         DeclareLaunchArgument('publish_robot_tf', default_value='true',
                               description='false: TF on <ns>/sim_tf (leave <ns>/tf to MoveIt).'),
         DeclareLaunchArgument('robot_namespace', default_value='',

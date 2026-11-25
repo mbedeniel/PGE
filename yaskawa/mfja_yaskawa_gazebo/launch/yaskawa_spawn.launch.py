@@ -5,9 +5,13 @@ Can be included several times with different namespaces (several arms in one wor
     1. xacro of robots/<robot_model>_robot.urdf.xacro with gz_sim:=true
     2. robot_state_publisher (TF on <robot_namespace>/tf)
     3. ros_gz_sim create, with the description passed as a string
-    4. joint_state_broadcaster and arm_controller, once the arm is in the world
+    4. joint_state_broadcaster and arm_controller, once the arm is in the world; arm_controller
+       inactive, as on the real arms (activate_arm_controller:=true starts it active)
     5. motoros2_sim: the MotoROS2 interface of the real robot (follow_joint_trajectory,
-       robot_status, start_traj_mode, ...), relayed to arm_controller
+       robot_status, start_traj_mode, start_point_queue_mode, ...), relayed to arm_controller
+
+Until arm_controller is active, the Gazebo plugin holds the joints where they are (its default
+hold_joints), as the brakes do on the real arms.
 """
 
 import os
@@ -72,22 +76,31 @@ def _launch_setup(context):
             '-x', arg('x'), '-y', arg('y'), '-z', arg('z'), '-Y', arg('yaw'),
         ],
     )
-    spawner = Node(
-        package='controller_manager',
-        executable='spawner',
-        namespace=namespace,
-        output='screen',
-        arguments=[
-            'joint_state_broadcaster',
-            'arm_controller',
-            '--controller-manager', f'/{namespace}/controller_manager',
-            '--controller-manager-timeout', '120',
-        ],
-    )
+    controller_manager = ['--controller-manager', f'/{namespace}/controller_manager',
+                          '--controller-manager-timeout', '120']
+    arm_spawner_args = ['arm_controller'] + controller_manager
+    if not _as_bool(arg('activate_arm_controller')):
+        arm_spawner_args.append('--inactive')
+    spawners = [
+        Node(
+            package='controller_manager',
+            executable='spawner',
+            namespace=namespace,
+            output='screen',
+            arguments=['joint_state_broadcaster'] + controller_manager,
+        ),
+        Node(
+            package='controller_manager',
+            executable='spawner',
+            namespace=namespace,
+            output='screen',
+            arguments=arm_spawner_args,
+        ),
+    ]
     actions = [
         robot_state_publisher,
         spawn,
-        RegisterEventHandler(OnProcessExit(target_action=spawn, on_exit=[spawner])),
+        RegisterEventHandler(OnProcessExit(target_action=spawn, on_exit=spawners)),
     ]
     if _as_bool(arg('motoros2_sim')):
         actions.append(Node(
@@ -115,6 +128,9 @@ def generate_launch_description():
         DeclareLaunchArgument('yaw', default_value='0.0'),
         DeclareLaunchArgument('motoros2_sim', default_value='true',
                               description='Start the MotoROS2 interface imitation.'),
+        DeclareLaunchArgument('activate_arm_controller', default_value='false',
+                              description='true: start arm_controller active. Default false, as on '
+                                          'the real arms (see start_traj_mode, start_point_queue_mode).'),
         DeclareLaunchArgument('publish_robot_tf', default_value='true',
                               description='false: publish the simulated TF on <ns>/sim_tf instead of <ns>/tf.'),
         DeclareLaunchArgument('controller_params_file', default_value='',
