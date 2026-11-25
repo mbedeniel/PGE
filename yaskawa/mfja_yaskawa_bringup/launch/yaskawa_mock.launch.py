@@ -5,7 +5,8 @@
 Starts, in the robot namespace: robot_state_publisher, ros2_control_node with
 mock_components/GenericSystem, joint_state_broadcaster, arm_controller and the
 MotoROS2 interface imitation (same names as the real robot).
-The controllers are the same as in Gazebo (config/yaskawa_controllers.yaml).
+The controllers are those of the real arms (config/yaskawa_controllers.yaml +
+config/yaskawa_controllers_motoros2.yaml): the mock rehearses the real configuration.
 Runs on wall-clock time, so MoveIt launches that use wall-clock time work against it.
 """
 
@@ -33,8 +34,10 @@ def _launch_setup(context):
         or DEFAULT_NAMESPACES[model]
 
     description_share = get_package_share_directory('mfja_yaskawa_description')
-    controllers_file = os.path.join(
-        get_package_share_directory('mfja_yaskawa_bringup'), 'config', 'yaskawa_controllers.yaml')
+    config = os.path.join(get_package_share_directory('mfja_yaskawa_bringup'), 'config')
+    # Same controller files as the real arms: the mock rehearses them.
+    controllers_files = [os.path.join(config, 'yaskawa_controllers.yaml'),
+                         os.path.join(config, 'yaskawa_controllers_motoros2.yaml')]
     robot_description = xacro.process_file(
         os.path.join(description_share, 'robots', f'{model}_robot.urdf.xacro'),
         mappings={'use_mock_hardware': 'true'},
@@ -48,17 +51,17 @@ def _launch_setup(context):
             output='screen',
             parameters=[{'robot_description': robot_description}],
             # publish_robot_tf:=false leaves <ns>/tf to another publisher (e.g. a MoveIt launch).
-            remappings=[('/tf', 'tf'), ('/tf_static', 'tf_static')]
+            remappings=[('joint_states', 'joint_state_broadcaster/joint_states')] + ([('/tf', 'tf'), ('/tf_static', 'tf_static')]
             if _as_bool(LaunchConfiguration('publish_robot_tf').perform(context))
-            else [('/tf', 'sim_tf'), ('/tf_static', 'sim_tf_static')],
+            else [('/tf', 'sim_tf'), ('/tf_static', 'sim_tf_static')]),
         ),
         Node(
             package='controller_manager',
             executable='ros2_control_node',
             namespace=namespace,
             output='screen',
-            # The controllers file sets use_sim_time for Gazebo; there is no /clock here.
-            parameters=[controllers_file, {'use_sim_time': False}],
+            # Wall clock, as on the real arms: there is no /clock here.
+            parameters=controllers_files + [{'use_sim_time': False}],
             remappings=[('~/robot_description', 'robot_description')],
         ),
         Node(

@@ -12,17 +12,29 @@
   Real arm:  motoros2_hw_interfaces/GPIOSystem, which reads the outputs with <ns>/read_single_io and
              writes an output with <ns>/write_single_io when the command differs from the state read.
   Mock:      mock_components/GenericSystem, which copies each command to the state of the same name.
+             Its states start at 0, as the outputs read on the real arm (otherwise NaN until a command).
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-  <xacro:macro name="yaskawa_gripper_gpio" params="prefix init_address open_address close_address">
+  <xacro:macro name="yaskawa_gripper_state" params="name address initial_state">
+    <state_interface name="${name}">
+      <param name="address">${address}</param>
+      <xacro:if value="${str(initial_state) != ''}">
+        <param name="initial_value">${initial_state}</param>
+      </xacro:if>
+    </state_interface>
+  </xacro:macro>
+
+  <!-- initial_state: value of the three states before any command (mock only: the real arm reads them). -->
+  <xacro:macro name="yaskawa_gripper_gpio"
+               params="prefix init_address open_address close_address initial_state:=''">
     <gpio name="${prefix}gripper">
       <param name="io_type">single</param>
       <command_interface name="init"><param name="address">${init_address}</param></command_interface>
       <command_interface name="open"><param name="address">${open_address}</param></command_interface>
       <command_interface name="close"><param name="address">${close_address}</param></command_interface>
-      <state_interface name="init"><param name="address">${init_address}</param></state_interface>
-      <state_interface name="open"><param name="address">${open_address}</param></state_interface>
-      <state_interface name="close"><param name="address">${close_address}</param></state_interface>
+      <xacro:yaskawa_gripper_state name="init" address="${init_address}" initial_state="${initial_state}"/>
+      <xacro:yaskawa_gripper_state name="open" address="${open_address}" initial_state="${initial_state}"/>
+      <xacro:yaskawa_gripper_state name="close" address="${close_address}" initial_state="${initial_state}"/>
     </gpio>
   </xacro:macro>
 
@@ -55,7 +67,7 @@
         <plugin>mock_components/GenericSystem</plugin>
       </hardware>
       <xacro:yaskawa_gripper_gpio prefix="${prefix}" init_address="10133" open_address="10134"
-                                  close_address="10135"/>
+                                  close_address="10135" initial_state="0.0"/>
     </ros2_control>
   </xacro:macro>
 </robot>

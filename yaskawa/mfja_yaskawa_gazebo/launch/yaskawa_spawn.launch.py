@@ -57,8 +57,8 @@ def _launch_setup(context):
         output='screen',
         parameters=[{'robot_description': robot_description, 'use_sim_time': True}],
         # publish_robot_tf:=false leaves <ns>/tf to another publisher (e.g. a MoveIt launch).
-        remappings=[('/tf', 'tf'), ('/tf_static', 'tf_static')] if _as_bool(arg('publish_robot_tf'))
-        else [('/tf', 'sim_tf'), ('/tf_static', 'sim_tf_static')],
+        remappings=[('joint_states', 'joint_state_broadcaster/joint_states')] + ([('/tf', 'tf'), ('/tf_static', 'tf_static')]
+        if _as_bool(arg('publish_robot_tf')) else [('/tf', 'sim_tf'), ('/tf_static', 'sim_tf_static')]),
     )
     spawn = Node(
         package='ros_gz_sim',

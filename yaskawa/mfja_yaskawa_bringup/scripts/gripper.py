@@ -9,7 +9,7 @@ requests. Each command is therefore sent as a pulse:
   1. if the request already reads 1 (for example after a teach-pendant key), release it first;
   2. set the request to 1 and the others to 0, and wait until the request reads 1;
   3. keep it for --hold seconds, then set every request to 0 and wait until they read 0.
-The states come from joint_state_broadcaster (dynamic_joint_states). Works on the real arms
+The states come from <ns>/joint_state_broadcaster/dynamic_joint_states. Works on the real arms
 (yaskawa_real.launch.py) and on mock hardware (yaskawa_mock.launch.py).
 On error or Ctrl+C, every request is set back to 0.
 """
@@ -50,10 +50,9 @@ class Gripper(Node):
         self.states = None
         self.publisher = self.create_publisher(
             Float64MultiArray, f'/{namespace}/gripper_controller/commands', 10)
-        # Mock launch: <ns>/dynamic_joint_states. Real launch: the broadcaster uses local topics.
-        for topic in (f'/{namespace}/dynamic_joint_states',
-                      f'/{namespace}/joint_state_broadcaster/dynamic_joint_states'):
-            self.create_subscription(DynamicJointState, topic, self._on_states, 10)
+        self.create_subscription(
+            DynamicJointState, f'/{namespace}/joint_state_broadcaster/dynamic_joint_states',
+            self._on_states, 10)
 
     def _on_states(self, msg):
         states = gripper_states(msg)

@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>mfja_yaskawa_description</name>
-  <version>0.4.0</version>
+  <version>0.5.0</version>
   <description>
     URDF/xacro of the MFJA Room 315 Yaskawa arms (HC10 right, HC10DT left), meshes,
     ros2_control declarations for Gazebo and mock hardware, RViz display.

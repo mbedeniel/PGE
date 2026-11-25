@@ -4,7 +4,8 @@
     ros2 run mfja_yaskawa_bringup move_joint.py --robot right --joint 6 --delta 0.1
     ros2 run mfja_yaskawa_bringup move_joint.py --robot right --joint 6 --delta 0.2 --back --points 300
 
-Reads the current position on <ns>/joint_states, sends a smooth (cosine) trajectory to
+Reads the current position on <ns>/joint_state_broadcaster/joint_states (what ros2_control sees,
+same topic in Gazebo, with mock hardware and on the real arms), sends a smooth (cosine) trajectory to
 <ns>/arm_controller/follow_joint_trajectory and waits for the result. Works the same on the
 real arms (yaskawa_real.launch.py) and in simulation (mock or Gazebo).
 Ctrl+C cancels the goal: the controller then holds the current position.
@@ -62,7 +63,8 @@ class MoveJoint(Node):
         self.namespace = namespace
         self.state = None
         self.create_subscription(
-            JointState, f'/{namespace}/joint_states', self._on_state, qos_profile_sensor_data)
+            JointState, f'/{namespace}/joint_state_broadcaster/joint_states', self._on_state,
+            qos_profile_sensor_data)
         self.client = ActionClient(
             self, FollowJointTrajectory, f'/{namespace}/arm_controller/follow_joint_trajectory')
 
@@ -106,7 +108,8 @@ def main():
     try:
         start = node.wait_for_state(5.0)
         if start is None:
-            sys.exit(f'No joint_1..joint_6 state on /{node.namespace}/joint_states within 5 s')
+            sys.exit(f'No joint_1..joint_6 state on /{node.namespace}/joint_state_broadcaster/'
+                     'joint_states within 5 s (is joint_state_broadcaster active?)')
         if not node.client.wait_for_server(timeout_sec=5.0):
             sys.exit(f'No action server /{node.namespace}/arm_controller/follow_joint_trajectory '
                      '(is the launch running?)')

@@ -11,7 +11,12 @@ real robots, so that client code (scripts, MoveIt) works unchanged in simulation
            read_single_io           motoros2_interfaces/srv/ReadSingleIO
            write_single_io          motoros2_interfaces/srv/WriteSingleIO
 
-joint_states is published by the joint_state_broadcaster of the simulation.
+  topic    joint_states             sensor_msgs/msg/JointState (reliable: received by every
+                                    subscriber, best-effort ones included)
+
+joint_states is the simulated arm's state from joint_state_broadcaster (local topic
+joint_state_broadcaster/joint_states), republished under the MotoROS2 name, as on the real arms
+where MotoROS2 publishes it and ros2_control republishes it on the local topic.
 Goals are checked like MotoROS2 does (trajectory mode, 2 to max_points points, all joints,
 velocities, increasing times, zero final velocity, start at the current position), then
 forwarded to the joint_trajectory_controller of the simulation, to start at once as MotoROS2 does.
@@ -74,8 +79,9 @@ class MotoROS2Sim(Node):
         self._active_client_goal = None
 
         group = ReentrantCallbackGroup()
-        self.create_subscription(JointState, 'joint_states', self._on_joint_states, 10,
-                                 callback_group=group)
+        self._joint_states_pub = self.create_publisher(JointState, 'joint_states', 10)
+        self.create_subscription(JointState, 'joint_state_broadcaster/joint_states',
+                                 self._on_joint_states, 10, callback_group=group)
         self._status_pub = self.create_publisher(RobotStatus, 'robot_status', 10)
         self.create_timer(1.0 / float(self.get_parameter('status_rate').value),
                           self._publish_status, callback_group=group)
@@ -109,6 +115,7 @@ class MotoROS2Sim(Node):
         with self._lock:
             for name, position in zip(msg.name, msg.position):
                 self._positions[name] = position
+        self._joint_states_pub.publish(msg)
 
     def _publish_status(self):
         def tri(value):

@@ -3,7 +3,10 @@
   ros2_control system without simulator: mock_components/GenericSystem copies each
   command to the matching state. First test step for the controllers (poly ch. 22.8.2).
 
-  The real arms use ros2_control/yaskawa_motoros2.ros2_control.xacro.
+  Same joint interfaces as the real arms (ros2_control/yaskawa_motoros2.ros2_control.xacro), so that
+  the mock rehearses the real controller configuration (yaskawa_controllers.yaml +
+  yaskawa_controllers_motoros2.yaml). calculate_dynamics stays off: the mock refuses two command
+  interfaces per joint when it integrates the dynamics itself.
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:include filename="$(find mfja_yaskawa_description)/ros2_control/yaskawa_joints.xacro"/>
@@ -12,9 +15,8 @@
     <ros2_control name="${name}" type="system">
       <hardware>
         <plugin>mock_components/GenericSystem</plugin>
-        <param name="calculate_dynamics">true</param>
       </hardware>
-      <xacro:yaskawa_position_joints prefix="${prefix}" initial_positions="${initial_positions}"/>
+      <xacro:yaskawa_position_velocity_joints prefix="${prefix}" initial_positions="${initial_positions}"/>
     </ros2_control>
   </xacro:macro>
 </robot>

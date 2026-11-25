@@ -12,13 +12,50 @@ following the organisation of the MOTKIN example (course notes, ch. 22–23).
 | Package | Content |
 |---|---|
 | `mfja_yaskawa` | Metapackage, this documentation |
-| `mfja_yaskawa_description` | Root files `robots/hc10_robot.urdf.xacro` and `robots/hc10dt_robot.urdf.xacro`, arm macros and meshes from Yaskawa's ROS 2 support package, `ros2_control/` (mock hardware), `gazebo/` (gz_ros2_control), `show.launch.py` |
-| `mfja_yaskawa_bringup` | Controller configuration, launch with mock hardware (no simulator), launch of the real arms on ros2_control, test script `move_joint.py` |
+| `mfja_yaskawa_description` | Root files `robots/hc10_robot.urdf.xacro` and `robots/hc10dt_robot.urdf.xacro`, arm macros and meshes from Yaskawa's ROS 2 support package, `ros2_control/` (real arms, mock hardware, gripper), `gazebo/` (gz_ros2_control), `show.launch.py` |
+| `mfja_yaskawa_bringup` | Controller configuration shared by all modes, launch with mock hardware (no simulator), launch of the real arms on ros2_control, scripts `move_joint.py` and `gripper.py` |
 | `mfja_yaskawa_gazebo` | Gazebo launches (empty world or the running twin), cell file |
 | `mfja_yaskawa_motoros2_sim` | Imitation of the MotoROS2 interface in front of the simulated controllers |
 
 Real cell: left = HC10DT, white covers, namespace `yaskawa_LEFT`;
 right = HC10, blue covers, namespace `yaskawa_RIGHT`.
+
+## Same controllers in simulation and on the real arms
+
+The client asked for a simulation as close as possible to the real robots, with the same controllers.
+Following the MOTKIN example of the course notes (ch. 22–23), one xacro argument chooses the hardware,
+and everything above it is shared:
+
+```
+                                 one controller configuration          hardware chosen in the xacro
+client code ──▶ arm_controller      (joint_trajectory_controller) ──▶  gz_sim:=true             Gazebo (gz_ros2_control)
+(move_joint.py, gripper_controller  (forward command, gripper)        use_mock_hardware:=true  mock (rehearses the real arm)
+ gripper.py,    joint_state_broadcaster                               use_real_hardware:=true  MotoROS2 hardware interface
+ MoveIt)                                                                                        + GPIOSystem (gripper)
+```
+
+**Identical everywhere:** the controllers and their settings (`config/yaskawa_controllers.yaml`: 50 Hz,
+tolerances, gripper requests), the topics and actions of the controllers
+(`<ns>/arm_controller/follow_joint_trajectory`, `<ns>/gripper_controller/commands`,
+`<ns>/joint_state_broadcaster/joint_states`), and the scripts. `<ns>/joint_states` is published by
+MotoROS2 on the real arms and by its imitation (`mfja_yaskawa_motoros2_sim`) in simulation.
+
+**What still depends on the hardware, and why:**
+
+| | Gazebo | Mock | Real arm |
+|---|---|---|---|
+| Clock | simulated (forced by the Gazebo plugin) | wall clock | wall clock |
+| `arm_controller` command interfaces | position | position + velocity | position + velocity |
+| Start-up | controllers active at launch | controllers active at launch | `start_point_queue_mode`, then activation of `arm_controller` |
+| Gripper | not simulated yet | mock GPIO | `GPIOSystem` (MotoROS2 IO services) |
+
+- The MotoROS2 hardware interface requires position + velocity commands: each point it queues in
+  MotoROS2 carries both. `config/yaskawa_controllers_motoros2.yaml` adds the velocity for the real arms
+  and for the mock that rehearses them. Gazebo stays on position: when a joint receives both, the Gazebo
+  plugin applies the velocity alone, so the simulated arm would follow speeds without correcting its
+  position, whereas the real arm executes positions.
+- Aligning the start-up (the simulation waiting for `start_point_queue_mode`) and simulating the gripper
+  in Gazebo are the next steps.
 
 ## Interface (identical in simulation and on the real robots)
 
@@ -42,9 +79,9 @@ soon as it is received (`header.stamp` is ignored). A refused goal returns the M
 (for example `-100202`: too many points; `-100106`: servos off, call `start_traj_mode`).
 
 Gripper: on the real robots a background job opens, closes or initialises the gripper when
-OT#101, OT#102 or OT#100 is set; these outputs can be written with `write_single_io`
-(probably addresses 10134, 10135, 10133, to confirm on the pendant). The simulation stores the
-values and logs the request; the simulated gripper is not modelled yet.
+OT#101, OT#102 or OT#100 goes from 0 to 1; these outputs are written with `write_single_io` at
+addresses 10134, 10135, 10133 (open and close checked on the right arm). The MotoROS2 imitation stores
+the values and logs the request; see also the section "Gripper" below.
 
 ## Install and build
 
@@ -151,11 +188,11 @@ controller. Trajectories are no longer limited to 200 points.
 | | Simulation | Real arm, ros2_control |
 |---|---|---|
 | Launch | `yaskawa_gazebo.launch.py`, `yaskawa_mock.launch.py` | `yaskawa_real.launch.py` |
-| Controllers file | `config/yaskawa_controllers.yaml` | `config/yaskawa_controllers_real.yaml` |
-| Command interfaces | position | position + velocity (required by the plugin) |
+| Controllers files | `config/yaskawa_controllers.yaml` (+ `yaskawa_controllers_motoros2.yaml` for the mock) | `config/yaskawa_controllers.yaml` + `yaskawa_controllers_motoros2.yaml` |
+| Command interfaces | position (Gazebo), position + velocity (mock) | position + velocity (required by the plugin) |
 | Trajectory action | `<ns>/arm_controller/follow_joint_trajectory` | the same |
 | Gripper | `gripper_controller` + mock GPIO (mock only) | `gripper_controller` + `GPIOSystem` |
-| `<ns>/joint_states` | joint_state_broadcaster | MotoROS2 (the broadcaster publishes on `<ns>/joint_state_broadcaster/joint_states`) |
+| `<ns>/joint_states` | MotoROS2 imitation (from `<ns>/joint_state_broadcaster/joint_states`) | MotoROS2 (ros2_control republishes it on `<ns>/joint_state_broadcaster/joint_states`) |
 
 On the PC that drives the robots, these packages live in their own workspace, built and used in a
 shell that loads ROS only: see "Workspace on the PC that drives the robots" in the [root README](../../README.md).
@@ -222,7 +259,8 @@ After an emergency stop or a MotoROS2 alarm: deactivate `arm_controller`, call `
 not the current position, so the arm cannot jump to an old command.
 
 The control loop runs at 50 Hz (one MotoROS2 service call per cycle). If `write_stats` shows almost no
-failures, 100 Hz can be tried (`update_rate` in `config/yaskawa_controllers_real.yaml`).
+failures, 100 Hz can be tried (`update_rate` in `config/yaskawa_controllers.yaml`, which also sets the
+simulation rate).
 
 ### Gripper
 

@@ -1,5 +1,12 @@
 <?xml version="1.0"?>
-<!-- ros2_control joint block shared by the Gazebo and mock systems: 6 joints, position commands. -->
+<!--
+  ros2_control joint blocks, 6 joints each:
+    yaskawa_position_joints           position command (Gazebo)
+    yaskawa_position_velocity_joints  position + velocity commands (real arms through MotoROS2, and the
+                                      mock hardware that rehearses them); the MotoROS2 hardware
+                                      interface requires exactly these interfaces, in this order.
+  States are position and velocity in both.
+-->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:macro name="yaskawa_position_joint" params="joint initial">
     <joint name="${joint}">
@@ -9,6 +16,30 @@
       </state_interface>
       <state_interface name="velocity"/>
     </joint>
+  </xacro:macro>
+
+  <xacro:macro name="yaskawa_position_velocity_joint" params="joint initial">
+    <joint name="${joint}">
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position">
+        <xacro:if value="${str(initial) != ''}">
+          <param name="initial_value">${initial}</param>
+        </xacro:if>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- initial_positions: dictionary joint -> value, or empty (real arms: the state comes from MotoROS2). -->
+  <xacro:macro name="yaskawa_position_velocity_joints" params="prefix initial_positions:=''">
+    <xacro:property name="init" value="${initial_positions if initial_positions else dict()}"/>
+    <xacro:yaskawa_position_velocity_joint joint="${prefix}joint_1" initial="${init.get('joint_1', '')}"/>
+    <xacro:yaskawa_position_velocity_joint joint="${prefix}joint_2" initial="${init.get('joint_2', '')}"/>
+    <xacro:yaskawa_position_velocity_joint joint="${prefix}joint_3" initial="${init.get('joint_3', '')}"/>
+    <xacro:yaskawa_position_velocity_joint joint="${prefix}joint_4" initial="${init.get('joint_4', '')}"/>
+    <xacro:yaskawa_position_velocity_joint joint="${prefix}joint_5" initial="${init.get('joint_5', '')}"/>
+    <xacro:yaskawa_position_velocity_joint joint="${prefix}joint_6" initial="${init.get('joint_6', '')}"/>
   </xacro:macro>
 
   <xacro:macro name="yaskawa_position_joints" params="prefix initial_positions">

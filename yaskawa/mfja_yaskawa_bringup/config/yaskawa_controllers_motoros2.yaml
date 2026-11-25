@@ -1,0 +1,13 @@
+# Loaded AFTER yaskawa_controllers.yaml for hardware driven through MotoROS2: the real arms
+# (motoros2_hw_interfaces/MotoROS2HardwareInterface) and the mock hardware that rehearses them.
+#
+# The MotoROS2 hardware interface requires a position and a velocity command per joint: every
+# point it queues in MotoROS2 carries both, and MotoROS2 uses the velocities to interpolate between
+# points. This is the only controller setting that differs from Gazebo. Gazebo stays on position:
+# when a joint receives both, the Gazebo plugin applies the velocity alone, so the simulated arm
+# would follow speeds without correcting its position, unlike the real arm.
+/**/arm_controller:
+  ros__parameters:
+    command_interfaces:
+      - position
+      - velocity

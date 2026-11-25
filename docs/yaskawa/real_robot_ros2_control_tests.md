@@ -54,12 +54,29 @@ replies and 1 point refused by MotoROS2 (cause to read in the launch output).
 Gripper, through `write_single_io` directly: open (10134) and close (10135) act on the change 0 → 1;
 putting the output back to 0 does nothing; the robot controller never resets the outputs.
 
+Gripper through ros2_control (`GPIOSystem` + `gripper_controller`, `gripper.py --robot right close`, then
+`open`): passed. The outputs read 0 before the command, the pulse is sent and the gripper closes, then opens.
+The first attempt failed only because the terminals still had `ROS_DOMAIN_ID=42` from the mock test.
+
+## Same controllers in simulation, 25/11/2026 (development laptop)
+
+After the alignment described in the Yaskawa README ("Same controllers in simulation and on the real arms"):
+
+| Check | Mock | Gazebo |
+|---|---|---|
+| `joint_state_broadcaster` and `arm_controller` active | Yes | Yes (`arm_controller` commands: position) |
+| `<ns>/joint_states`: one publisher (MotoROS2 imitation, as on the real arms) | Yes | Yes |
+| `move_joint.py --robot right --joint 6 --delta 0.1 --back` | Passed | Passed |
+| `gripper.py --robot right close` | Passed | Not simulated yet |
+| `execute_trajectory.py` of `mfja_ros2_yaskawa`, real-robot mode, both arms | – | Passed (lead-in and main trajectory) |
+
+The regression on the real right arm with this configuration is the next step at the platform.
+
 ## Next
 
-1. Gripper through ros2_control (`gripper.py`), then a real emergency stop followed by the recovery
-   sequence, an endurance run, and a motion of several joints at once.
+1. Real right arm: regression with the shared configuration, a real emergency stop followed by the recovery
+   sequence, an emergency stop during motion, a motion of several joints at once, an endurance run.
 2. The same tests on the left arm.
-3. Watch the call failure rate during motion.
-4. Simulation as close as possible to the real arm: same command interfaces (position + velocity) as on the
-   real arm, and imitation of the "point queue" mode in `mfja_yaskawa_motoros2_sim`.
-5. Gripper: `GPIOSystem` interface of the same package (outputs OT#100 to OT#102).
+3. Watch the call failure rate during motion; read the cause of the point refused by MotoROS2.
+4. Simulation: the arms waiting for `start_point_queue_mode` like the real ones, then the gripper in Gazebo.
+5. Gripper: effect of the "init" output (OT#100).

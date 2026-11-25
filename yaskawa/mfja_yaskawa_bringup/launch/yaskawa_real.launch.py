@@ -39,9 +39,9 @@ def _launch_setup(context):
     activate = _as_bool(LaunchConfiguration('activate_arm_controller').perform(context))
 
     description_share = get_package_share_directory('mfja_yaskawa_description')
-    controllers_file = os.path.join(
-        get_package_share_directory('mfja_yaskawa_bringup'), 'config',
-        'yaskawa_controllers_real.yaml')
+    config = os.path.join(get_package_share_directory('mfja_yaskawa_bringup'), 'config')
+    controllers_files = [os.path.join(config, 'yaskawa_controllers.yaml'),
+                         os.path.join(config, 'yaskawa_controllers_motoros2.yaml')]
     robot_description = xacro.process_file(
         os.path.join(description_share, 'robots', f'{model}_robot.urdf.xacro'),
         mappings={'use_real_hardware': 'true', 'robot_namespace': namespace},
@@ -61,16 +61,16 @@ def _launch_setup(context):
             output='screen',
             parameters=[{'robot_description': robot_description}],
             # MotoROS2 publishes the arm's TF itself; by default ours goes to <ns>/description_tf.
-            remappings=[('/tf', 'tf'), ('/tf_static', 'tf_static')]
+            remappings=[('joint_states', 'joint_state_broadcaster/joint_states')] + ([('/tf', 'tf'), ('/tf_static', 'tf_static')]
             if _as_bool(LaunchConfiguration('publish_robot_tf').perform(context))
-            else [('/tf', 'description_tf'), ('/tf_static', 'description_tf_static')],
+            else [('/tf', 'description_tf'), ('/tf_static', 'description_tf_static')]),
         ),
         Node(
             package='controller_manager',
             executable='ros2_control_node',
             namespace=namespace,
             output='screen',
-            parameters=[controllers_file],
+            parameters=controllers_files,
             remappings=[('~/robot_description', 'robot_description')],
         ),
         Node(
