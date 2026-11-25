@@ -52,8 +52,9 @@ lists them, MotoROS2 message definitions included. Workspaces already on that PC
 a separate workspace, built and used in a shell that loads ROS only (the PC's `~/.bashrc` loads another
 workspace, which would otherwise mix with this one).
 
+Open that shell first, on its own (`bash --norc`), then run the rest in it:
+
 ```bash
-bash --norc
 source /opt/ros/jazzy/setup.bash
 mkdir -p ~/pge_ws/src && cd ~/pge_ws/src
 git clone https://github.com/mbedeniel/PGE.git
@@ -65,10 +66,10 @@ colcon build --symlink-install --packages-up-to mfja_yaskawa_bringup --cmake-arg
 ```
 
 `rosdep check` only reports missing system packages. Those of `mfja_yaskawa_gazebo` (Gazebo, `ros_gz_*`) can be
-missing: that package is not built on this PC. Every terminal used with the robots then starts with:
+missing: that package is not built on this PC. Every terminal used with the robots then starts with
+`bash --norc` on its own, followed by:
 
 ```bash
-bash --norc
 source /opt/ros/jazzy/setup.bash
 source ~/pge_ws/install/setup.bash
 ```
@@ -85,6 +86,7 @@ section "Real robots on ros2_control".
 | [`patches/motoros2_hw_interfaces/`](patches/motoros2_hw_interfaces/README.md) | Local build fix for the MotoROS2 hardware interface |
 | [`docs/montrac/questions_D_Bury.md`](docs/montrac/questions_D_Bury.md) | Questions on the real Montrac (controller, link, devices, safety) and leads collected so far |
 | [`docs/yaskawa/verifications_yaskawa_reel.md`](docs/yaskawa/verifications_yaskawa_reel.md) | Checks to run on the real Yaskawa arms |
+| [`docs/yaskawa/essais_ros2_control_reel.md`](docs/yaskawa/essais_ros2_control_reel.md) | Real Yaskawa arms on ros2_control: robot PC setup, test results, next steps |
 
 ## Conventions
 

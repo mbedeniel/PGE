@@ -168,11 +168,14 @@ Before starting: the platform manager has agreed to the test, the teach pendant 
 emergency stop, the key is on REMOTE, nobody is in the arm's reach, and the micro-ROS agent runs.
 Commands for the right arm; for the left one use `robot_model:=hc10dt`, `yaskawa_LEFT` and `--robot left`.
 
-0. **Script in simulation first** (no robot):
+0. **Script in simulation first** (no robot). On a PC connected to the robots, use another ROS domain
+   in both terminals, so that the mock arm and the real one, which share the same names, never meet:
    ```bash
+   export ROS_DOMAIN_ID=42
    ros2 launch mfja_yaskawa_bringup yaskawa_mock.launch.py robot_model:=hc10
    ros2 run mfja_yaskawa_bringup move_joint.py --robot right --joint 6 --delta 0.1 --back
    ```
+   Then close both terminals: the next steps run in the robots' domain.
 1. **MotoROS2 answers** (joints named `joint_1` … `joint_6`, both services listed):
    ```bash
    ros2 topic echo --once /yaskawa_RIGHT/joint_states
