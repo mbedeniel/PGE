@@ -7,7 +7,7 @@
     Gazebo Harmonic simulation of the MFJA Room 315 Yaskawa arms with gz_ros2_control,
     alone or inside the mfja digital twin.
   </description>
-  <maintainer email="tayorayano@gmail.com">Niel MBEDE</maintainer>
+  <maintainer email="ryan-niel.tayou-mbede@utoulouse.fr">Niel MBEDE</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

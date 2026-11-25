@@ -7,7 +7,7 @@
     Controller configuration and launch files of the MFJA Room 315 Yaskawa arms outside Gazebo:
     mock hardware, and the real arms on ros2_control through MotoROS2 (motoros2_hw_interfaces).
   </description>
-  <maintainer email="tayorayano@gmail.com">Niel MBEDE</maintainer>
+  <maintainer email="ryan-niel.tayou-mbede@utoulouse.fr">Niel MBEDE</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

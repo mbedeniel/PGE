@@ -7,7 +7,7 @@
     Metapackage of the MFJA Room 315 Yaskawa arms (HC10, HC10DT): description,
     bringup and Gazebo simulation. Entry point of the documentation (README.md).
   </description>
-  <maintainer email="tayorayano@gmail.com">Niel MBEDE</maintainer>
+  <maintainer email="ryan-niel.tayou-mbede@utoulouse.fr">Niel MBEDE</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

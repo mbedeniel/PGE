@@ -16,7 +16,7 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='Niel MBEDE',
-    maintainer_email='tayorayano@gmail.com',
+    maintainer_email='ryan-niel.tayou-mbede@utoulouse.fr',
     description='Imitation of the MotoROS2 ROS 2 interface for the simulated MFJA Yaskawa arms.',
     license='Apache-2.0',
     tests_require=['pytest'],

@@ -7,7 +7,7 @@
     URDF/xacro of the MFJA Room 315 Yaskawa arms (HC10 right, HC10DT left), meshes,
     ros2_control declarations for Gazebo and mock hardware, RViz display.
   </description>
-  <maintainer email="tayorayano@gmail.com">Niel MBEDE</maintainer>
+  <maintainer email="ryan-niel.tayou-mbede@utoulouse.fr">Niel MBEDE</maintainer>
   <license>BSD-3-Clause</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

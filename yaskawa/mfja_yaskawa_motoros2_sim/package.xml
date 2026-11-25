@@ -8,7 +8,7 @@
     start/stop_traj_mode, reset_error, read/write_single_io) for the simulated MFJA Yaskawa arms,
     so that client code is the same in simulation and on the real robots.
   </description>
-  <maintainer email="tayorayano@gmail.com">Niel MBEDE</maintainer>
+  <maintainer email="ryan-niel.tayou-mbede@utoulouse.fr">Niel MBEDE</maintainer>
   <license>Apache-2.0</license>
 
   <exec_depend>action_msgs</exec_depend>
