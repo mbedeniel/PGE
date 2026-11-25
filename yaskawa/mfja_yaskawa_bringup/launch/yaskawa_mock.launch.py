@@ -69,6 +69,7 @@ def _launch_setup(context):
             arguments=[
                 'joint_state_broadcaster',
                 'arm_controller',
+                'gripper_controller',
                 '--controller-manager', f'/{namespace}/controller_manager',
             ],
         ),

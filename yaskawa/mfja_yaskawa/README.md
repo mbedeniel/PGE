@@ -154,6 +154,7 @@ controller. Trajectories are no longer limited to 200 points.
 | Controllers file | `config/yaskawa_controllers.yaml` | `config/yaskawa_controllers_real.yaml` |
 | Command interfaces | position | position + velocity (required by the plugin) |
 | Trajectory action | `<ns>/arm_controller/follow_joint_trajectory` | the same |
+| Gripper | `gripper_controller` + mock GPIO (mock only) | `gripper_controller` + `GPIOSystem` |
 | `<ns>/joint_states` | joint_state_broadcaster | MotoROS2 (the broadcaster publishes on `<ns>/joint_state_broadcaster/joint_states`) |
 
 On the PC that drives the robots, these packages live in their own workspace, built and used in a
@@ -222,6 +223,29 @@ not the current position, so the arm cannot jump to an old command.
 
 The control loop runs at 50 Hz (one MotoROS2 service call per cycle). If `write_stats` shows almost no
 failures, 100 Hz can be tried (`update_rate` in `config/yaskawa_controllers_real.yaml`).
+
+### Gripper
+
+On each arm, a background job of the robot controller drives the gripper from three general-purpose
+outputs: OT#100 init, OT#101 open, OT#102 close (MotoROS2 IO addresses 10133, 10134, 10135). The
+gripper reacts when an output goes from 0 to 1; going back to 0 does nothing, and the job never resets
+the outputs. A command is therefore a pulse (checked on the right arm on 25/11/2026 for open and close).
+
+In ros2_control the gripper is a GPIO named `gripper` with interfaces `init`, `open`, `close`:
+`motoros2_hw_interfaces/GPIOSystem` on the real arms (outputs read and written through
+`read_single_io` / `write_single_io`, 10 Hz), `mock_components/GenericSystem` with mock hardware.
+`gripper_controller` (`forward_command_controller/MultiInterfaceForwardCommandController`, data
+`[init, open, close]`) writes the requests; it writes nothing until a command is published.
+`gripper.py` sends one request as a pulse and checks each step on the states read back:
+
+```bash
+ros2 run mfja_yaskawa_bringup gripper.py --robot right close
+ros2 run mfja_yaskawa_bringup gripper.py --robot right open
+```
+
+The robot group must be selected on the teach pendant (Shift + Robot) for the gripper to work. There is
+no feedback of the gripper position yet: the states are the requests read back from the outputs. The
+gripper is not simulated in Gazebo yet.
 
 ## Still to check on the real robots
 

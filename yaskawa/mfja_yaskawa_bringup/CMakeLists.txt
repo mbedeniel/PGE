@@ -9,7 +9,7 @@ install(
 )
 
 install(
-  PROGRAMS scripts/move_joint.py
+  PROGRAMS scripts/move_joint.py scripts/gripper.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

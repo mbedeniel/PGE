@@ -25,9 +25,9 @@
 | No. | Item | How to check | Status | Result |
 |---|---|---|---|---|
 | 1 | MotoROS2 configuration of each controller | Get `motoros2_config.yaml` of both robots: namespace, joint names, `publish_tf`, `namespace_tf`, `tf_frame_prefix`. | Right arm: namespace and joint names confirmed; files not seen | |
-| 2 | Gripper: addresses | On the teach pendant, logical address of OT#100, OT#101, OT#102. | Computed: 10133, 10134, 10135 (Yaskawa numbering) | |
-| 3 | Gripper: command from ROS 2 | Robot stopped, gripper empty, one person at the emergency stop. Read then write OT#101 with `write_single_io` (commands below) and observe. Pulse or level? Who resets the output? Execution delay? | To test | |
-| 4 | Gripper: state | Is there an input telling gripper open, closed, initialised, in fault? Address? | Unknown | |
+| 2 | Gripper: addresses | On the teach pendant, logical address of OT#100, OT#101, OT#102. | Right arm: 10134 opens and 10135 closes the gripper (25/11/2026); 10133 (init) effect not observed | |
+| 3 | Gripper: command from ROS 2 | Robot stopped, gripper empty, one person at the emergency stop. Read then write OT#101 with `write_single_io` (commands below) and observe. Pulse or level? Who resets the output? Execution delay? | Right arm: reacts on 0 → 1; back to 0 does nothing; the controller never resets the outputs → pulse. Left arm: to test | |
+| 4 | Gripper: state | Is there an input telling gripper open, closed, initialised, in fault? Address? | Unknown (the gripper program on the platform wiki should tell) | |
 | 5 | Gripper: reference path | The student script `supervision_IHM.py` drives a Zimmer gripper through a Turck IO-Link gateway (Modbus TCP). Which path to keep: controller outputs or gateway? | To decide | |
 | 6 | HC10DT joint 1 zero | Joint 1 at 0: note the arm direction relative to the table, compare with `show.launch.py robot_model:=hc10dt`. | The ROS 2 model has no offset; visual check | |
 | 7 | Geometry (3 or 4 poses per robot) | On the teach pendant: angles of the 6 joints (°) and flange position in ROBOT coordinates, tool 0. Same angles in simulation, read `base` → `flange`. Expected difference < 5 mm. | To do | |

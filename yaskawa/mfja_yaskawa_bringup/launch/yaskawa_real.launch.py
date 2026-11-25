@@ -4,7 +4,8 @@
 
 Starts, in the robot namespace (yaskawa_RIGHT for hc10, yaskawa_LEFT for hc10dt):
 robot_state_publisher, ros2_control_node with motoros2_hw_interfaces/MotoROS2HardwareInterface,
-joint_state_broadcaster (local topics) and arm_controller (joint_trajectory_controller).
+joint_state_broadcaster (local topics), arm_controller (joint_trajectory_controller) and
+gripper_controller (gripper requests, sent only when scripts/gripper.py publishes one).
 
 arm_controller is loaded INACTIVE by default: nothing is sent to the robot until it is
 activated, after start_point_queue_mode (procedure in mfja_yaskawa/README.md).
@@ -77,7 +78,7 @@ def _launch_setup(context):
             executable='spawner',
             namespace=namespace,
             output='screen',
-            arguments=['joint_state_broadcaster',
+            arguments=['joint_state_broadcaster', 'gripper_controller',
                        '--controller-manager', f'/{namespace}/controller_manager'],
         ),
         Node(

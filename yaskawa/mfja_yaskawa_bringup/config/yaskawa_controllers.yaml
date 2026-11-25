@@ -12,6 +12,9 @@
     arm_controller:
       type: joint_trajectory_controller/JointTrajectoryController
 
+    gripper_controller:
+      type: forward_command_controller/MultiInterfaceForwardCommandController
+
 /**/arm_controller:
   ros__parameters:
     joints:
@@ -32,3 +35,13 @@
     constraints:
       stopped_velocity_tolerance: 0.01
       goal_time: 0.5
+
+# Gripper requests (GPIO "gripper"): data = [init, open, close], 1 = request set, 0 = released.
+# Use scripts/gripper.py, which sends each request as a pulse.
+/**/gripper_controller:
+  ros__parameters:
+    joint: gripper
+    interface_names:
+      - init
+      - open
+      - close

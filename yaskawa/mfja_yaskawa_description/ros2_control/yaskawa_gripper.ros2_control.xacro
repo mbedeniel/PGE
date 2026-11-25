@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<!--
+  Gripper of a Yaskawa arm, as a ros2_control GPIO named "<prefix>gripper" with three interfaces:
+    init, open, close  (command and state; 1 = request set, 0 = request released)
+
+  On the real arms, a background job of the robot controller watches three general-purpose outputs
+  and drives the gripper: OT#100 init, OT#101 open, OT#102 close (MotoROS2 IO addresses 10133,
+  10134, 10135). The gripper reacts when an output goes from 0 to 1; going back to 0 does nothing,
+  and the job never resets the outputs. A command is therefore a pulse: set to 1, check that the
+  output reads 1, set back to 0 (scripts/gripper.py of mfja_yaskawa_bringup).
+
+  Real arm:  motoros2_hw_interfaces/GPIOSystem, which reads the outputs with <ns>/read_single_io and
+             writes an output with <ns>/write_single_io when the command differs from the state read.
+  Mock:      mock_components/GenericSystem, which copies each command to the state of the same name.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="yaskawa_gripper_gpio" params="prefix init_address open_address close_address">
+    <gpio name="${prefix}gripper">
+      <param name="io_type">single</param>
+      <command_interface name="init"><param name="address">${init_address}</param></command_interface>
+      <command_interface name="open"><param name="address">${open_address}</param></command_interface>
+      <command_interface name="close"><param name="address">${close_address}</param></command_interface>
+      <state_interface name="init"><param name="address">${init_address}</param></state_interface>
+      <state_interface name="open"><param name="address">${open_address}</param></state_interface>
+      <state_interface name="close"><param name="address">${close_address}</param></state_interface>
+    </gpio>
+  </xacro:macro>
+
+  <!-- Real arm. update_rate [Hz]: how often the three outputs are read and commands written.
+       future_timeout [ms]: longest wait for one MotoROS2 reply (one call takes about 17 ms). -->
+  <xacro:macro name="yaskawa_gripper_io_ros2_control"
+               params="name prefix robot_namespace init_address:=10133 open_address:=10134
+                       close_address:=10135">
+    <xacro:property name="ns" value="${'/' + robot_namespace.strip('/') if robot_namespace.strip('/') else ''}"/>
+    <ros2_control name="${name}" type="system" is_async="true">
+      <hardware>
+        <plugin>motoros2_hw_interfaces/GPIOSystem</plugin>
+        <param name="read_single_io_srv">${ns}/read_single_io</param>
+        <param name="write_single_io_srv">${ns}/write_single_io</param>
+        <param name="read_group_io_srv">${ns}/read_group_io</param>
+        <param name="write_group_io_srv">${ns}/write_group_io</param>
+        <param name="update_rate">10</param>
+        <param name="future_timeout">200</param>
+        <param name="throttle_duration">5000</param>
+      </hardware>
+      <xacro:yaskawa_gripper_gpio prefix="${prefix}" init_address="${init_address}"
+                                  open_address="${open_address}" close_address="${close_address}"/>
+    </ros2_control>
+  </xacro:macro>
+
+  <!-- Mock hardware: same interfaces, each command is copied to its state. -->
+  <xacro:macro name="yaskawa_gripper_mock_ros2_control" params="name prefix">
+    <ros2_control name="${name}" type="system">
+      <hardware>
+        <plugin>mock_components/GenericSystem</plugin>
+      </hardware>
+      <xacro:yaskawa_gripper_gpio prefix="${prefix}" init_address="10133" open_address="10134"
+                                  close_address="10135"/>
+    </ros2_control>
+  </xacro:macro>
+</robot>

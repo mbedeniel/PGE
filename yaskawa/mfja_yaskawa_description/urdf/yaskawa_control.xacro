@@ -6,11 +6,14 @@
     use_real_hardware=true  real arm through MotoROS2 (ros2_control/yaskawa_motoros2.ros2_control.xacro)
     all false               no ros2_control tag (display only)
   The first true one wins, in this order. The real hardware is never chosen by default.
+  With mock or real hardware, the gripper is added as a second ros2_control system
+  (ros2_control/yaskawa_gripper.ros2_control.xacro). Not simulated in Gazebo yet.
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:include filename="$(find mfja_yaskawa_description)/gazebo/yaskawa_gazebo.urdf.xacro"/>
   <xacro:include filename="$(find mfja_yaskawa_description)/ros2_control/yaskawa_mock.ros2_control.xacro"/>
   <xacro:include filename="$(find mfja_yaskawa_description)/ros2_control/yaskawa_motoros2.ros2_control.xacro"/>
+  <xacro:include filename="$(find mfja_yaskawa_description)/ros2_control/yaskawa_gripper.ros2_control.xacro"/>
 
   <xacro:macro name="yaskawa_control"
                params="name prefix gz_sim use_mock_hardware use_real_hardware robot_namespace
@@ -29,10 +32,13 @@
     <xacro:if value="${use_mock and not use_gz}">
       <xacro:yaskawa_mock_ros2_control name="${name}" prefix="${prefix}"
                                        initial_positions="${initial_positions}"/>
+      <xacro:yaskawa_gripper_mock_ros2_control name="${name}_gripper" prefix="${prefix}"/>
     </xacro:if>
     <xacro:if value="${use_real and not use_gz and not use_mock}">
       <xacro:yaskawa_motoros2_ros2_control name="${name}" prefix="${prefix}"
                                            robot_namespace="${robot_namespace}"/>
+      <xacro:yaskawa_gripper_io_ros2_control name="${name}_gripper" prefix="${prefix}"
+                                             robot_namespace="${robot_namespace}"/>
     </xacro:if>
   </xacro:macro>
 </robot>

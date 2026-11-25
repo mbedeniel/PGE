@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>mfja_yaskawa_bringup</name>
-  <version>0.4.0</version>
+  <version>0.5.0</version>
   <description>
     Controller configuration and launch files of the MFJA Room 315 Yaskawa arms outside Gazebo:
     mock hardware, and the real arms on ros2_control through MotoROS2 (motoros2_hw_interfaces).
@@ -16,6 +16,7 @@
   <exec_depend>builtin_interfaces</exec_depend>
   <exec_depend>control_msgs</exec_depend>
   <exec_depend>controller_manager</exec_depend>
+  <exec_depend>forward_command_controller</exec_depend>
   <exec_depend>hardware_interface</exec_depend>
   <exec_depend>joint_state_broadcaster</exec_depend>
   <exec_depend>joint_trajectory_controller</exec_depend>
@@ -27,6 +28,7 @@
   <exec_depend>rclpy</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
   <exec_depend>trajectory_msgs</exec_depend>
   <exec_depend>xacro</exec_depend>
 
