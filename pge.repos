@@ -10,7 +10,7 @@ repositories:
     type: git
     url: https://github.com/aip-primeca-occitanie/mfja_3rd_floor_gz.git
     version: INTERNSHIP-ALI-2026
-  # Real Yaskawa arms through MotoROS2: scripts and MoveIt configuration (D. Bury).
+  # Real Yaskawa arms through MotoROS2: scripts and MoveIt configuration (MFJA platform).
   mfja_ros2_yaskawa:
     type: git
     url: https://github.com/aip-primeca-occitanie/mfja_ros2_yaskawa.git

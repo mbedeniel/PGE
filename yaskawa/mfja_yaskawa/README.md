@@ -225,6 +225,6 @@ failures, 100 Hz can be tried (`update_rate` in `config/yaskawa_controllers_real
 
 ## Still to check on the real robots
 
-See `docs/yaskawa/verifications_yaskawa_reel.md`: MotoROS2 configuration of each controller
+See [`docs/yaskawa/real_robot_checks.md`](../../docs/yaskawa/real_robot_checks.md): MotoROS2 configuration of each controller
 (namespace, joint names, TF), gripper IO addresses and behaviour, base placement in the room,
 speeds. Inertias are placeholders (position control only).

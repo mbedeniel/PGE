@@ -84,9 +84,9 @@ section "Real robots on ros2_control".
 | [`yaskawa/`](yaskawa/mfja_yaskawa/README.md) | Yaskawa HC10 / HC10DT: description, controllers, Gazebo simulation with the same ROS 2 interface as the real robots (MotoROS2) |
 | [`patches/mfja_3rd_floor_gz/`](patches/mfja_3rd_floor_gz/README.md) | Local fixes for the twin, kept as patches (Gazebo GUI started after the robots are spawned) |
 | [`patches/motoros2_hw_interfaces/`](patches/motoros2_hw_interfaces/README.md) | Local build fix for the MotoROS2 hardware interface |
-| [`docs/montrac/questions_D_Bury.md`](docs/montrac/questions_D_Bury.md) | Questions on the real Montrac (controller, link, devices, safety) and leads collected so far |
-| [`docs/yaskawa/verifications_yaskawa_reel.md`](docs/yaskawa/verifications_yaskawa_reel.md) | Checks to run on the real Yaskawa arms |
-| [`docs/yaskawa/essais_ros2_control_reel.md`](docs/yaskawa/essais_ros2_control_reel.md) | Real Yaskawa arms on ros2_control: robot PC setup, test results, next steps |
+| [`docs/montrac/questions.md`](docs/montrac/questions.md) | Questions on the real Montrac (controller, link, devices, safety) and leads collected so far |
+| [`docs/yaskawa/real_robot_checks.md`](docs/yaskawa/real_robot_checks.md) | Checks to run on the real Yaskawa arms |
+| [`docs/yaskawa/real_robot_ros2_control_tests.md`](docs/yaskawa/real_robot_ros2_control_tests.md) | Real Yaskawa arms on ros2_control: robot PC setup, test results, next steps |
 
 ## Conventions
 
