@@ -312,6 +312,24 @@ The control loop runs at 50 Hz (one MotoROS2 service call per cycle). If `write_
 failures, 100 Hz can be tried (`update_rate` in `config/yaskawa_controllers.yaml`, which also sets the
 simulation rate).
 
+### Plan and execute in RViz (MoveIt)
+
+`launch/yaskawa_moveit.launch.py` starts MoveIt and RViz on our `arm_controller`: a motion planned in RViz is
+executed through `<ns>/arm_controller/follow_joint_trajectory`, as any other trajectory of this setup. The
+planning model (URDF, SRDF, kinematics, joint limits, RViz layout) is the one of `motoman_hc10_moveit_config`
+(repository `mfja_ros2_yaskawa`), reused unchanged; `config/moveit_controllers.yaml` replaces only its
+execution, which uses MotoROS2's own action. MoveIt and that package are in the robot PC's own workspace, so
+this launch runs by its path in a normal terminal, while the arm runs in a `pge_shell.sh` terminal:
+
+1. Bring-up as above: `yaskawa_real.launch.py`, `start_point_queue_mode`, activation of `arm_controller`.
+2. Normal terminal:
+   ```bash
+   ros2 launch ~/pge_ws/src/PGE/yaskawa/mfja_yaskawa_bringup/launch/yaskawa_moveit.launch.py robot:=right
+   ```
+3. In the MotionPlanning panel: velocity and acceleration scaling at 0.10; a small change of one joint in the
+   Joints tab; Plan, check the preview, Execute.
+4. Stop as above (deactivate `arm_controller`, Ctrl+C the arm launch, `stop_traj_mode`).
+
 ### Gripper
 
 On each arm, a background job of the robot controller drives the gripper from three general-purpose

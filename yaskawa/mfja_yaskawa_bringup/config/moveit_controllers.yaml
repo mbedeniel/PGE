@@ -1,0 +1,20 @@
+# MoveIt execution through our ros2_control arm_controller (joint_trajectory_controller), the same in
+# simulation and on the real arms. Used by launch/yaskawa_moveit.launch.py; the action resolves in the
+# arm's namespace: /<ns>/arm_controller/follow_joint_trajectory.
+moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+
+moveit_simple_controller_manager:
+  controller_names:
+    - arm_controller
+
+  arm_controller:
+    type: FollowJointTrajectory
+    action_ns: follow_joint_trajectory
+    default: true
+    joints:
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+      - joint_5
+      - joint_6
