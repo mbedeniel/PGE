@@ -49,16 +49,23 @@ applied on a local branch that is never pushed.
 
 The PC connected to the robots (MFJA, room 315) only needs the real-arm packages: `pge_real_robots.repos`
 lists them, MotoROS2 message definitions included. Workspaces already on that PC are left untouched: ours is
-a separate workspace, built and used in a shell that loads ROS only (the PC's `~/.bashrc` loads another
-workspace, which would otherwise mix with this one).
+a separate workspace, built and used in a shell that loads ROS and this workspace only. The PC's `~/.bashrc`
+loads another workspace, which would otherwise mix with this one.
 
-Open that shell first, on its own (`bash --norc`), then run the rest in it:
+`pge_shell.sh`, at the root of this repository, opens that shell: it starts from an empty environment,
+so nothing loaded by `~/.bashrc` or by the current terminal is kept (other workspaces, a `ROS_DOMAIN_ID`
+left from a test), then loads `/opt/ros/jazzy` and the workspace, and shows a `(pge)` prompt. Nothing on
+the PC is modified. `bash --norc` is not enough: it skips `~/.bashrc` but keeps what the terminal has
+already loaded.
 
 ```bash
-source /opt/ros/jazzy/setup.bash
-mkdir -p ~/pge_ws/src && cd ~/pge_ws/src
-git clone https://github.com/mbedeniel/PGE.git
-cd ~/pge_ws
+mkdir -p ~/pge_ws/src && git clone https://github.com/mbedeniel/PGE.git ~/pge_ws/src/PGE
+~/pge_ws/src/PGE/pge_shell.sh
+```
+
+Then, in the `(pge)` shell:
+
+```bash
 vcs import --input src/PGE/pge_real_robots.repos src/
 git -C src/motoros2_hw_interfaces apply ../PGE/patches/motoros2_hw_interfaces/0001-declare-realtime-tools-and-trajectory-msgs-dependencies.patch
 rosdep check --from-paths src --ignore-src
@@ -66,15 +73,14 @@ colcon build --symlink-install --packages-up-to mfja_yaskawa_bringup --cmake-arg
 ```
 
 `rosdep check` only reports missing system packages. Those of `mfja_yaskawa_gazebo` (Gazebo, `ros_gz_*`) can be
-missing: that package is not built on this PC. Every terminal used with the robots then starts with
-`bash --norc` on its own, followed by:
+missing: that package is not built on this PC. Every terminal used with the robots then starts with:
 
 ```bash
-source /opt/ros/jazzy/setup.bash
-source ~/pge_ws/install/setup.bash
+~/pge_ws/src/PGE/pge_shell.sh
 ```
 
-The micro-ROS agent keeps running as set up on that PC. Use of the real arms: `yaskawa/mfja_yaskawa/README.md`,
+To update after a change on GitHub, in the `(pge)` shell: `git -C src/PGE pull`, then the same `colcon build`
+line. The micro-ROS agent keeps running as set up on that PC, in a normal terminal. Use of the real arms: `yaskawa/mfja_yaskawa/README.md`,
 section "Real robots on ros2_control".
 
 ## Contents
@@ -87,6 +93,7 @@ section "Real robots on ros2_control".
 | [`docs/montrac/questions.md`](docs/montrac/questions.md) | Questions on the real Montrac (controller, link, devices, safety) and leads collected so far |
 | [`docs/yaskawa/real_robot_checks.md`](docs/yaskawa/real_robot_checks.md) | Checks to run on the real Yaskawa arms |
 | [`docs/yaskawa/real_robot_ros2_control_tests.md`](docs/yaskawa/real_robot_ros2_control_tests.md) | Real Yaskawa arms on ros2_control: robot PC setup, test results, next steps |
+| [`pge_shell.sh`](pge_shell.sh) | Opens a shell that loads ROS 2 and the workspace only (used on the PC that drives the robots) |
 
 ## Conventions
 

@@ -11,8 +11,10 @@ Full procedure: `yaskawa/mfja_yaskawa/README.md`, section "Real robots on ros2_c
 
 - The PC must keep the fixed address that MotoROS2 on both controllers uses for the micro-ROS agent
   (addresses on the platform wiki). Its room-network connection must use manual addressing only.
-- Separate workspace `~/pge_ws`, built from `pge_real_robots.repos` in a `bash --norc` shell that loads
-  `/opt/ros/jazzy` only: the existing workspace of the PC is neither modified nor used.
+- Separate workspace `~/pge_ws`, built from `pge_real_robots.repos`; the existing workspace of the PC is not
+  modified. The tests of 24–25/11 were run in `bash --norc` shells, which skip `~/.bashrc` but keep what the
+  terminal had already loaded: the PC's workspace was therefore still loaded, under ours. Since then the
+  workspace is built and used in `pge_shell.sh`, which starts from an empty environment (root README).
 - micro-ROS agent: the one already set up on the PC, unchanged.
 
 Network issue fixed on 24/11/2026: the room-network connection of the PC also requested an address by DHCP.
