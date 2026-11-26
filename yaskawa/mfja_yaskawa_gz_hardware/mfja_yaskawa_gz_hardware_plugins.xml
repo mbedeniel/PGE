@@ -1,0 +1,11 @@
+<library path="mfja_yaskawa_gz_hardware">
+  <class
+    name="mfja_yaskawa_gz_hardware/YaskawaGazeboSystem"
+    type="mfja_yaskawa_gz_hardware::YaskawaGazeboSystem"
+    base_class_type="gz_ros2_control::GazeboSimSystemInterface">
+    <description>
+      Gazebo hardware system of the MFJA Yaskawa arms, with the ros2_control interfaces of the real
+      arms: position and velocity commands per joint, GPIO commands copied to their states.
+    </description>
+  </class>
+</library>

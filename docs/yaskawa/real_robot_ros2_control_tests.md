@@ -89,12 +89,28 @@ After the alignment described in the Yaskawa README ("Same start-up"), right arm
 | `stop_traj_mode` after deactivating `arm_controller` | Accepted |
 | `execute_trajectory.py` of `mfja_ros2_yaskawa` (trajectory mode), both arms | Passed; `arm_controller` inactive again afterwards |
 
+## Same interfaces in Gazebo, 26/11/2026 (development laptop)
+
+With the Gazebo hardware system `mfja_yaskawa_gz_hardware` (Yaskawa README, "Why our own Gazebo hardware
+system") and a single controllers file for every mode, right arm unless stated:
+
+| Check | Result |
+|---|---|
+| Controllers at launch | `joint_state_broadcaster` and `gripper_controller` active, `arm_controller` inactive |
+| Interfaces after `start_point_queue_mode` and activation | `joint_6/position`, `joint_6/velocity` and `gripper/init`, `open`, `close` claimed, as on the real arm |
+| `move_joint.py` (joint 6, 0.3 rad and back in 10 s, peak 0.094 rad/s) | Passed, back at 0.0000 rad |
+| `gripper.py close` | Passed (states 0 before, pulse sent and read back) |
+| `stop_traj_mode` after deactivating `arm_controller` | Accepted |
+| `execute_trajectory.py` of `mfja_ros2_yaskawa` (trajectory mode), both arms | Passed |
+| Arms while `arm_controller` is inactive | Held still |
+
 ## Next
 
 1. Real right arm: regression with the shared configuration, a real emergency stop followed by the recovery
    sequence, an emergency stop during motion, a motion of several joints at once, an endurance run.
 2. The same tests on the left arm.
 3. Watch the call failure rate during motion; read the cause of the point refused by MotoROS2.
-4. Simulation: the gripper in Gazebo. The start-up is now the same as on the real arms (Yaskawa README,
-   "Same start-up"); the real procedure is unchanged.
+4. Simulation: the gripper fingers in Gazebo (the gripper interfaces are already those of the real arm).
+   Interfaces, controllers and start-up are now the same as on the real arms; the real procedure is
+   unchanged.
 5. Gripper: effect of the "init" output (OT#100).

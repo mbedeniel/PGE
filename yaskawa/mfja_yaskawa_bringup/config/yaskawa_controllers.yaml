@@ -1,10 +1,13 @@
 # Controllers of one Yaskawa arm: the SAME file in Gazebo, with mock hardware and on the real arms.
 # The wildcard keys serve every namespace (/yaskawa_LEFT, /yaskawa_RIGHT, ...).
 #
-# Only two things are not in this file, because they belong to the hardware, not to the controllers:
-#   - the clock: Gazebo forces use_sim_time to true; mock and real arms use the wall clock;
-#   - the command interfaces of arm_controller on hardware driven through MotoROS2 (real arms, and
-#     the mock that rehearses them): yaskawa_controllers_motoros2.yaml adds "velocity" (see that file).
+# Only the clock is not in this file, because it belongs to the hardware: Gazebo forces use_sim_time
+# to true; mock and real arms use the wall clock.
+#
+# arm_controller sends a position and a velocity per joint: the MotoROS2 hardware interface of the
+# real arms requires both (each point queued in MotoROS2 carries both, and MotoROS2 uses the
+# velocities to interpolate between points). The mock and the Gazebo system
+# (mfja_yaskawa_gz_hardware) take the same two commands.
 /**/controller_manager:
   ros__parameters:
     update_rate: 50  # Hz, the rate used on the real arms (one MotoROS2 service call per cycle)
@@ -35,6 +38,7 @@
       - joint_6
     command_interfaces:
       - position
+      - velocity
     state_interfaces:
       - position
       - velocity

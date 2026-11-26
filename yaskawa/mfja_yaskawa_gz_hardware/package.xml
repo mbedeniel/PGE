@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>mfja_yaskawa_gz_hardware</name>
+  <version>0.1.0</version>
+  <description>
+    Gazebo hardware system of the MFJA Room 315 Yaskawa arms, loaded by gz_ros2_control. It has the
+    ros2_control interfaces of the real arms (motoros2_hw_interfaces): position and velocity
+    commands per joint, and the gripper GPIO.
+  </description>
+  <maintainer email="ryan-niel.tayou-mbede@utoulouse.fr">Niel MBEDE</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>gz_ros2_control</depend>
+  <depend>gz_sim_vendor</depend>
+  <depend>hardware_interface</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

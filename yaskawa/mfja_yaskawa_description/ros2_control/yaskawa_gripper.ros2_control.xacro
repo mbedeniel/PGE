@@ -70,4 +70,15 @@
                                   close_address="10135" initial_state="0.0"/>
     </ros2_control>
   </xacro:macro>
+
+  <!-- Gazebo: same GPIO, each command copied to its state; the gripper itself is not simulated. -->
+  <xacro:macro name="yaskawa_gripper_gz_ros2_control" params="name prefix">
+    <ros2_control name="${name}" type="system">
+      <hardware>
+        <plugin>mfja_yaskawa_gz_hardware/YaskawaGazeboSystem</plugin>
+      </hardware>
+      <xacro:yaskawa_gripper_gpio prefix="${prefix}" init_address="10133" open_address="10134"
+                                  close_address="10135" initial_state="0.0"/>
+    </ros2_control>
+  </xacro:macro>
 </robot>

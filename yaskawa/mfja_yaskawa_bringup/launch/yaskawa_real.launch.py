@@ -40,8 +40,8 @@ def _launch_setup(context):
 
     description_share = get_package_share_directory('mfja_yaskawa_description')
     config = os.path.join(get_package_share_directory('mfja_yaskawa_bringup'), 'config')
-    controllers_files = [os.path.join(config, 'yaskawa_controllers.yaml'),
-                         os.path.join(config, 'yaskawa_controllers_motoros2.yaml')]
+    # Same controllers file as the mock and Gazebo.
+    controllers_files = [os.path.join(config, 'yaskawa_controllers.yaml')]
     robot_description = xacro.process_file(
         os.path.join(description_share, 'robots', f'{model}_robot.urdf.xacro'),
         mappings={'use_real_hardware': 'true', 'robot_namespace': namespace},

@@ -5,13 +5,14 @@ Can be included several times with different namespaces (several arms in one wor
     1. xacro of robots/<robot_model>_robot.urdf.xacro with gz_sim:=true
     2. robot_state_publisher (TF on <robot_namespace>/tf)
     3. ros_gz_sim create, with the description passed as a string
-    4. joint_state_broadcaster and arm_controller, once the arm is in the world; arm_controller
-       inactive, as on the real arms (activate_arm_controller:=true starts it active)
+    4. joint_state_broadcaster, gripper_controller and arm_controller, once the arm is in the world;
+       arm_controller inactive, as on the real arms (activate_arm_controller:=true starts it active)
     5. motoros2_sim: the MotoROS2 interface of the real robot (follow_joint_trajectory,
        robot_status, start_traj_mode, start_point_queue_mode, ...), relayed to arm_controller
 
-Until arm_controller is active, the Gazebo plugin holds the joints where they are (its default
-hold_joints), as the brakes do on the real arms.
+The hardware system is mfja_yaskawa_gz_hardware/YaskawaGazeboSystem (same interfaces as the real
+arms). Until arm_controller is active, it holds the joints where they are, as the brakes do on the
+real arms.
 """
 
 import os
@@ -87,7 +88,7 @@ def _launch_setup(context):
             executable='spawner',
             namespace=namespace,
             output='screen',
-            arguments=['joint_state_broadcaster'] + controller_manager,
+            arguments=['joint_state_broadcaster', 'gripper_controller'] + controller_manager,
         ),
         Node(
             package='controller_manager',

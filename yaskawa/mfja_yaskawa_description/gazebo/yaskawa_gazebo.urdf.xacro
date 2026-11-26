@@ -1,8 +1,13 @@
 <?xml version="1.0"?>
 <!--
-  Gazebo part of the description: gz_ros2_control/GazeboSimSystem and the plugin that
-  runs the controller_manager inside Gazebo. robot_namespace lets several arms share
-  one world; the controllers file uses /** keys for that reason.
+  Gazebo part of the description: the hardware system and the gz_ros2_control plugin that runs the
+  controller_manager inside Gazebo. robot_namespace lets several arms share one world; the
+  controllers file uses /** keys for that reason.
+
+  Hardware system: mfja_yaskawa_gz_hardware/YaskawaGazeboSystem rather than the default
+  gz_ros2_control/GazeboSimSystem, so that the simulated arm has the interfaces of the real one
+  (position and velocity commands per joint, gripper GPIO). position_gain (1/s) corrects the position
+  error on top of the commanded velocity.
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:include filename="$(find mfja_yaskawa_description)/ros2_control/yaskawa_joints.xacro"/>
@@ -11,9 +16,10 @@
                params="name prefix initial_positions robot_namespace controller_params_file">
     <ros2_control name="${name}" type="system">
       <hardware>
-        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+        <plugin>mfja_yaskawa_gz_hardware/YaskawaGazeboSystem</plugin>
+        <param name="position_gain">10.0</param>
       </hardware>
-      <xacro:yaskawa_position_joints prefix="${prefix}" initial_positions="${initial_positions}"/>
+      <xacro:yaskawa_position_velocity_joints prefix="${prefix}" initial_positions="${initial_positions}"/>
     </ros2_control>
 
     <gazebo>

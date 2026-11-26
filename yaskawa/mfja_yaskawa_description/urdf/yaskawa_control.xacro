@@ -6,8 +6,9 @@
     use_real_hardware=true  real arm through MotoROS2 (ros2_control/yaskawa_motoros2.ros2_control.xacro)
     all false               no ros2_control tag (display only)
   The first true one wins, in this order. The real hardware is never chosen by default.
-  With mock or real hardware, the gripper is added as a second ros2_control system
-  (ros2_control/yaskawa_gripper.ros2_control.xacro). Not simulated in Gazebo yet.
+  The joint interfaces are the same in every case (ros2_control/yaskawa_joints.xacro). The gripper is
+  added as a second ros2_control system (ros2_control/yaskawa_gripper.ros2_control.xacro): MotoROS2 IO
+  on the real arms, a copy of the commands to the states in the mock and in Gazebo.
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:include filename="$(find mfja_yaskawa_description)/gazebo/yaskawa_gazebo.urdf.xacro"/>
@@ -28,6 +29,7 @@
                             initial_positions="${initial_positions}"
                             robot_namespace="${robot_namespace}"
                             controller_params_file="${controller_params_file}"/>
+      <xacro:yaskawa_gripper_gz_ros2_control name="${name}_gripper" prefix="${prefix}"/>
     </xacro:if>
     <xacro:if value="${use_mock and not use_gz}">
       <xacro:yaskawa_mock_ros2_control name="${name}" prefix="${prefix}"

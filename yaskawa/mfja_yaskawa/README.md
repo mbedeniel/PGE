@@ -12,9 +12,10 @@ following the organisation of the MOTKIN example (course notes, ch. 22–23).
 | Package | Content |
 |---|---|
 | `mfja_yaskawa` | Metapackage, this documentation |
-| `mfja_yaskawa_description` | Root files `robots/hc10_robot.urdf.xacro` and `robots/hc10dt_robot.urdf.xacro`, arm macros and meshes from Yaskawa's ROS 2 support package, `ros2_control/` (real arms, mock hardware, gripper), `gazebo/` (gz_ros2_control), `show.launch.py` |
+| `mfja_yaskawa_description` | Root files `robots/hc10_robot.urdf.xacro` and `robots/hc10dt_robot.urdf.xacro`, arm macros and meshes from Yaskawa's ROS 2 support package, `ros2_control/` (joints, real arms, mock hardware, gripper), `gazebo/` (gz_ros2_control), `show.launch.py` |
 | `mfja_yaskawa_bringup` | Controller configuration shared by all modes, launch with mock hardware (no simulator), launch of the real arms on ros2_control, scripts `move_joint.py` and `gripper.py` |
 | `mfja_yaskawa_gazebo` | Gazebo launches (empty world or the running twin), cell file |
+| `mfja_yaskawa_gz_hardware` | Gazebo hardware system with the ros2_control interfaces of the real arms (C++ plugin loaded by gz_ros2_control) |
 | `mfja_yaskawa_motoros2_sim` | Imitation of the MotoROS2 interface in front of the simulated controllers |
 
 Real cell: left = HC10DT, white covers, namespace `yaskawa_LEFT`;
@@ -28,32 +29,41 @@ and everything above it is shared:
 
 ```
                                  one controller configuration          hardware chosen in the xacro
-client code ──▶ arm_controller      (joint_trajectory_controller) ──▶  gz_sim:=true             Gazebo (gz_ros2_control)
+client code ──▶ arm_controller      (joint_trajectory_controller) ──▶  gz_sim:=true             Gazebo (mfja_yaskawa_gz_hardware)
 (move_joint.py, gripper_controller  (forward command, gripper)        use_mock_hardware:=true  mock (rehearses the real arm)
  gripper.py,    joint_state_broadcaster                               use_real_hardware:=true  MotoROS2 hardware interface
  MoveIt)                                                                                        + GPIOSystem (gripper)
 ```
 
-**Identical everywhere:** the controllers and their settings (`config/yaskawa_controllers.yaml`: 50 Hz,
-tolerances, gripper requests), the topics and actions of the controllers
+**Identical everywhere:** the ros2_control interfaces of the hardware (per joint: commands position and
+velocity, states position and velocity; gripper GPIO `init`, `open`, `close`), the controllers and their
+settings (one file, `config/yaskawa_controllers.yaml`: 50 Hz, tolerances, gripper requests), the topics
+and actions of the controllers
 (`<ns>/arm_controller/follow_joint_trajectory`, `<ns>/gripper_controller/commands`,
 `<ns>/joint_state_broadcaster/joint_states`), and the scripts. `<ns>/joint_states` is published by
 MotoROS2 on the real arms and by its imitation (`mfja_yaskawa_motoros2_sim`) in simulation.
 
-**What still depends on the hardware, and why:**
+**What changes with the hardware:**
 
 | | Gazebo | Mock | Real arm |
 |---|---|---|---|
+| Hardware system | `mfja_yaskawa_gz_hardware/YaskawaGazeboSystem` | `mock_components/GenericSystem` | `motoros2_hw_interfaces/MotoROS2HardwareInterface` |
+| Joint motion | velocity command + correction of the position error, in the physics engine | the state is the command | the robot controller follows the points queued in MotoROS2 |
+| Gripper GPIO | commands copied to the states | commands copied to the states | `GPIOSystem` (MotoROS2 IO services) |
 | Clock | simulated (forced by the Gazebo plugin) | wall clock | wall clock |
-| `arm_controller` command interfaces | position | position + velocity | position + velocity |
-| Gripper | not simulated yet | mock GPIO | `GPIOSystem` (MotoROS2 IO services) |
 
-- The MotoROS2 hardware interface requires position + velocity commands: each point it queues in
-  MotoROS2 carries both. `config/yaskawa_controllers_motoros2.yaml` adds the velocity for the real arms
-  and for the mock that rehearses them. Gazebo stays on position: when a joint receives both, the Gazebo
-  plugin applies the velocity alone, so the simulated arm would follow speeds without correcting its
-  position, whereas the real arm executes positions.
-- Simulating the gripper in Gazebo is the next step.
+**Why our own Gazebo hardware system.** The MotoROS2 hardware interface requires a position and a velocity
+command per joint: each point it queues in MotoROS2 carries both, and MotoROS2 uses the velocities to move
+smoothly between points. The default Gazebo system of gz_ros2_control (`gz_ros2_control/GazeboSimSystem`)
+cannot take both: when a joint receives both, it applies the velocity alone and ignores the position.
+`mfja_yaskawa_gz_hardware` is a custom simulation plugin for gz_ros2_control (the mechanism described in
+the gz_ros2_control documentation; the MOTKIN example of the course does the same with its own Gazebo
+system). It takes exactly the interfaces of the real arms and checks them when it starts. For each joint it
+applies the commanded velocity plus a correction of the position error (`position_gain`, 10 1/s, set in
+`gazebo/yaskawa_gazebo.urdf.xacro`), as the robot controller follows the points it receives. Joints whose
+commands are not claimed by a controller are held still, as the brakes hold the real arms. The gripper
+GPIO copies each command to its state, like the mock: `gripper.py` works in Gazebo, but the fingers
+themselves are not simulated.
 
 **Same start-up.** In every mode `arm_controller` is loaded inactive (launch argument
 `activate_arm_controller`, default `false`) and the arm does not move until a MotoROS2 motion mode is
@@ -222,10 +232,10 @@ controller. Trajectories are no longer limited to 200 points.
 | | Simulation | Real arm, ros2_control |
 |---|---|---|
 | Launch | `yaskawa_gazebo.launch.py`, `yaskawa_mock.launch.py` | `yaskawa_real.launch.py` |
-| Controllers files | `config/yaskawa_controllers.yaml` (+ `yaskawa_controllers_motoros2.yaml` for the mock) | `config/yaskawa_controllers.yaml` + `yaskawa_controllers_motoros2.yaml` |
-| Command interfaces | position (Gazebo), position + velocity (mock) | position + velocity (required by the plugin) |
+| Controllers file | `config/yaskawa_controllers.yaml` | the same |
+| Command interfaces | position + velocity | the same (required by the plugin) |
 | Trajectory action | `<ns>/arm_controller/follow_joint_trajectory` | the same |
-| Gripper | `gripper_controller` + mock GPIO (mock only) | `gripper_controller` + `GPIOSystem` |
+| Gripper | `gripper_controller`; commands copied to the states | `gripper_controller` + `GPIOSystem` |
 | `<ns>/joint_states` | MotoROS2 imitation (from `<ns>/joint_state_broadcaster/joint_states`) | MotoROS2 (ros2_control republishes it on `<ns>/joint_state_broadcaster/joint_states`) |
 
 On the PC that drives the robots, these packages live in their own workspace, built and used in a
@@ -311,7 +321,8 @@ the outputs. A command is therefore a pulse (checked on the right arm on 25/11/2
 
 In ros2_control the gripper is a GPIO named `gripper` with interfaces `init`, `open`, `close`:
 `motoros2_hw_interfaces/GPIOSystem` on the real arms (outputs read and written through
-`read_single_io` / `write_single_io`, 10 Hz), `mock_components/GenericSystem` with mock hardware.
+`read_single_io` / `write_single_io`, 10 Hz); in the mock and in Gazebo, each command is copied to its
+state.
 `gripper_controller` (`forward_command_controller/MultiInterfaceForwardCommandController`, data
 `[init, open, close]`) writes the requests; it writes nothing until a command is published.
 `gripper.py` sends one request as a pulse and checks each step on the states read back:
@@ -322,8 +333,8 @@ ros2 run mfja_yaskawa_bringup gripper.py --robot right open
 ```
 
 The robot group must be selected on the teach pendant (Shift + Robot) for the gripper to work. There is
-no feedback of the gripper position yet: the states are the requests read back from the outputs. The
-gripper is not simulated in Gazebo yet.
+no feedback of the gripper position yet: the states are the requests read back from the outputs. In
+Gazebo the gripper requests go through the same interfaces, but the fingers are not simulated.
 
 ## Still to check on the real robots
 

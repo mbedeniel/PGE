@@ -8,8 +8,8 @@ MotoROS2 interface imitation (same names as the real robot).
 Same start-up as the real arms: arm_controller is loaded inactive. Either call start_traj_mode
 (MotoROS2 trajectories; the imitation then activates arm_controller), or call
 start_point_queue_mode and activate arm_controller by hand. activate_arm_controller:=true skips this.
-The controllers are those of the real arms (config/yaskawa_controllers.yaml +
-config/yaskawa_controllers_motoros2.yaml): the mock rehearses the real configuration.
+The controllers file is the one of the real arms and of Gazebo (config/yaskawa_controllers.yaml):
+the mock rehearses the real configuration.
 Runs on wall-clock time, so MoveIt launches that use wall-clock time work against it.
 """
 
@@ -38,9 +38,8 @@ def _launch_setup(context):
 
     description_share = get_package_share_directory('mfja_yaskawa_description')
     config = os.path.join(get_package_share_directory('mfja_yaskawa_bringup'), 'config')
-    # Same controller files as the real arms: the mock rehearses them.
-    controllers_files = [os.path.join(config, 'yaskawa_controllers.yaml'),
-                         os.path.join(config, 'yaskawa_controllers_motoros2.yaml')]
+    # Same controllers file as the real arms and Gazebo.
+    controllers_files = [os.path.join(config, 'yaskawa_controllers.yaml')]
     activate = _as_bool(LaunchConfiguration('activate_arm_controller').perform(context))
     arm_spawner_args = ['arm_controller', '--controller-manager', f'/{namespace}/controller_manager']
     if not activate:
